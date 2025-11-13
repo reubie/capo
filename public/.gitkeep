@@ -1,0 +1,4 @@
+# Public folder - Static assets served as-is
+# Images placed here can be referenced with absolute paths like /image.jpg
+# Example: <img src="/placeholder-product.jpg" />
+

@@ -1,0 +1,4 @@
+# Assets folder - For images that need to be imported
+# Import images like: import logo from './assets/logo.png'
+# Then use: <img src={logo} />
+
