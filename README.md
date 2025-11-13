@@ -158,4 +158,4 @@ MIT
 
 ## Author
 
-Reubie (r.mguyo27@gmail.com)
+Reubie (r.nguyo27@gmail.com)
