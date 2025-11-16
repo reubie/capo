@@ -14,10 +14,10 @@ const Button = ({
   const baseStyles = 'font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
-    primary: 'bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 focus:ring-primary-500',
-    secondary: 'bg-gradient-to-r from-accent-600 to-accent-700 text-white hover:from-accent-700 hover:to-accent-800 focus:ring-accent-500',
-    outline: 'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 focus:ring-primary-500',
-    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
+    primary: 'bg-brand-purplePrimary text-white hover:bg-brand-purpleLight focus:ring-brand-purpleGlow',
+    secondary: 'bg-brand-bluePrimary text-white hover:bg-brand-blueGlow focus:ring-brand-blueGlow',
+    outline: 'border-2 border-brand-purplePrimary text-brand-purplePrimary hover:bg-brand-purplePrimary/10 focus:ring-brand-purpleGlow',
+    ghost: 'text-brand-textSecondary hover:bg-white/10 focus:ring-brand-blueGlow',
   };
   
   const sizes = {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X } from 'lucide-react';
-import Button from '../components/Button';
 import CardPreview from '../components/CardPreview';
 import { networkAPI } from '../utils/api';
 
@@ -197,7 +196,7 @@ const Network = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5E6D3]">
+    <div className="min-h-screen bg-brand-background text-brand-textPrimary">
       {/* Background Image with subtle overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-20"
@@ -205,26 +204,26 @@ const Network = () => {
       />
       
       {/* Header */}
-      <div className="relative bg-[#F5E6D3]/95 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-[#8B4513]/20">
+      <div className="relative bg-brand-background/80 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center gap-2 text-[#8B4513] hover:text-[#A0522D] transition-colors font-medium"
+                className="flex items-center gap-2 text-brand-textSecondary hover:text-white transition-colors font-medium"
               >
                 <ArrowLeft className="w-5 h-5" />
                 <span className="hidden sm:inline">Back to Home</span>
               </button>
-              <h1 className="text-2xl font-bold text-[#8B4513]">
-                Capo <span className="text-[#5C4033]">Network</span>
+              <h1 className="text-2xl font-bold text-white">
+                Capo <span className="text-brand-purplePrimary">Network</span>
               </h1>
             </div>
             <button
               onClick={() => navigate('/gifticon')}
-              className="px-4 py-2 bg-[#8B4513] text-white rounded-lg font-medium hover:bg-[#A0522D] transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-2"
             >
-              <Gift className="w-4 h-4" />
+              <Gift className="w-4 h-4 mr-2" />
               Gifticon
             </button>
           </div>
@@ -234,24 +233,24 @@ const Network = () => {
       {/* Main Content */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filter Bar */}
-        <div className="bg-[#F5E6D3] rounded-xl shadow-lg p-4 mb-6 border border-[#8B4513]/20">
+        <div className="bg-brand-cardDark rounded-xl shadow-lg p-4 mb-6 border border-white/10">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#8B4513]/60 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-textSecondary w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search by name, company, email, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[#8B4513]/30 rounded-lg bg-white/50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513] placeholder-[#8B4513]/40"
+                className="w-full pl-10 pr-4 py-2 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-[#8B4513]/60" />
+              <Filter className="w-5 h-5 text-brand-textSecondary" />
               <select
                 value={filterBy}
                 onChange={(e) => setFilterBy(e.target.value)}
-                className="px-4 py-2 border border-[#8B4513]/30 rounded-lg bg-white/50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513]"
+                className="px-4 py-2 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white"
               >
                 <option value="all">All</option>
                 <option value="date">Sort by Date</option>
@@ -261,7 +260,7 @@ const Network = () => {
             </div>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-[#8B4513] text-white rounded-lg font-medium hover:bg-[#A0522D] transition-colors flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center justify-center gap-2"
             >
               <Plus className="w-5 h-5" />
               Add New Card
@@ -272,19 +271,19 @@ const Network = () => {
         {/* Cards Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]"></div>
-            <p className="mt-4 text-[#8B4513]/70">Loading cards...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-purplePrimary"></div>
+            <p className="mt-4 text-brand-textSecondary">Loading cards...</p>
           </div>
         ) : filteredCards.length === 0 ? (
-          <div className="bg-[#F5E6D3] rounded-xl shadow-lg p-12 text-center border border-[#8B4513]/20">
-            <p className="text-[#8B4513]/70 text-lg mb-4">
+          <div className="bg-brand-cardDark rounded-xl shadow-lg p-12 text-center border border-white/10">
+            <p className="text-brand-textSecondary text-lg mb-4">
               {searchQuery ? 'No cards found matching your search' : 'No business cards yet'}
             </p>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-[#8B4513] text-white rounded-lg font-medium hover:bg-[#A0522D] transition-colors flex items-center gap-2 mx-auto"
+              className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-2 mx-auto"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 mr-2" />
               Add Your First Card
             </button>
           </div>
@@ -304,25 +303,25 @@ const Network = () => {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-[#F5E6D3] rounded-2xl p-8 max-w-md w-full relative shadow-2xl border-2 border-[#8B4513]/30">
+          <div className="bg-brand-cardDark rounded-2xl p-8 max-w-md w-full relative shadow-2xl border border-white/10">
             <button
               onClick={() => {
                 setShowUploadModal(false);
                 setCardImage(null);
                 setCardPreview(null);
               }}
-              className="absolute top-4 right-4 text-[#8B4513] hover:text-[#A0522D] transition-colors"
+              className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
-            <h2 className="text-2xl font-bold text-[#8B4513] mb-6">Add Business Card</h2>
+            <h2 className="text-2xl font-bold text-white mb-6">Add Business Card</h2>
             {cardPreview ? (
               <div className="space-y-4">
                 <div className="relative">
                   <img
                     src={cardPreview}
                     alt="Business card preview"
-                    className="w-full h-64 object-contain rounded-lg border-2 border-[#8B4513]/30"
+                    className="w-full h-64 object-contain rounded-lg border border-white/10"
                   />
                   <button
                     onClick={() => {
@@ -337,14 +336,14 @@ const Network = () => {
                 <button
                   onClick={handleAddCard}
                   disabled={uploading}
-                  className="w-full py-3 bg-[#8B4513] text-white font-bold rounded-lg hover:bg-[#A0522D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploading ? 'Processing...' : 'Add Card'}
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-[#8B4513]/30 rounded-lg p-8 text-center hover:border-[#8B4513] transition-colors">
+                <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
@@ -356,14 +355,14 @@ const Network = () => {
                     htmlFor="card-upload-modal"
                     className="cursor-pointer flex flex-col items-center gap-3"
                   >
-                    <div className="p-4 bg-[#8B4513]/10 rounded-full">
-                      <Upload className="w-8 h-8 text-[#8B4513]" />
+                    <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
+                      <Upload className="w-8 h-8 text-brand-purplePrimary" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[#8B4513]">
+                      <p className="text-sm font-medium text-white">
                         Click to upload or take a photo
                       </p>
-                      <p className="text-xs text-[#8B4513]/70 mt-1">
+                      <p className="text-xs text-brand-textSecondary mt-1">
                         PNG, JPG up to 5MB
                       </p>
                     </div>

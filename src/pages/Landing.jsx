@@ -40,13 +40,13 @@ const Landing = () => {
       <div className="absolute top-0 right-0 z-50 flex items-center p-4 md:p-6 gap-3">
         <button
           onClick={() => navigate('/register')}
-          className="px-4 py-2 bg-[#8B4513] text-white rounded-lg font-medium hover:bg-[#A0522D] transition-colors"
+          className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors"
         >
           Register
         </button>
         <button
           onClick={() => navigate('/login')}
-          className="px-4 py-2 bg-[#8B4513] text-white rounded-lg font-medium hover:bg-[#A0522D] transition-colors"
+          className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors"
         >
           Login
         </button>
@@ -54,11 +54,11 @@ const Landing = () => {
 
       {/* Diagonal Split Container */}
       <div className="relative h-screen w-full overflow-hidden">
-        {/* Left Side - GIFTICON (Dark Brown) */}
+        {/* Left Side - GIFTICON (Purple overlay) */}
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(135deg, rgba(92, 64, 51, 0.3) 0%, rgba(92, 64, 51, 0.3) 50%, transparent 100%)',
+            background: 'linear-gradient(135deg, rgba(106, 27, 255, 0.35) 0%, rgba(106, 27, 255, 0.35) 50%, transparent 100%)',
             clipPath: `polygon(0 0, ${diagonalTop}% 0, ${diagonalBottom}% 100%, 0 100%)`,
           }}
         >
@@ -70,11 +70,11 @@ const Landing = () => {
           />
         </div>
 
-        {/* Right Side - NETWORK (Light Cream) */}
+        {/* Right Side - NETWORK (Blue overlay) */}
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(135deg, transparent 0%, rgba(245, 230, 211, 0.3) 50%, rgba(245, 230, 211, 0.3) 100%)',
+            background: 'linear-gradient(135deg, transparent 0%, rgba(59, 184, 255, 0.35) 50%, rgba(59, 184, 255, 0.35) 100%)',
             clipPath: `polygon(${diagonalTop}% 0, 100% 0, 100% 100%, ${diagonalBottom}% 100%)`,
           }}
         >
@@ -99,31 +99,6 @@ const Landing = () => {
               <h2 className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white tracking-tight leading-none">
                 GIFTICON
               </h2>
-              {hoveredSide === 'gifticon' && (
-                <div className="absolute top-full mt-4 left-0 animate-fade-in space-y-2 whitespace-nowrap">
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate('/gifticon');
-                      }}
-                      className="px-3 py-1.5 border-2 border-white text-white rounded-md font-medium hover:bg-white/10 transition-colors text-xs"
-                    >
-                      OUR CAPABILITIES
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate('/gifticon');
-                      }}
-                      className="px-3 py-1.5 border-2 border-white text-white rounded-md font-medium hover:bg-white/10 transition-colors text-xs"
-                    >
-                      FEATURED PROJECTS
-                    </button>
-                  </div>
-                  <p className="text-white/90 text-xs">OR VIEW ALL WORK</p>
-                </div>
-              )}
             </div>
 
             {/* Central Logo */}
@@ -145,7 +120,7 @@ const Landing = () => {
               <h2 
                 className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-none"
                 style={{
-                  WebkitTextStroke: '2px #8B4513',
+                  WebkitTextStroke: '2px #6a1bff',
                   WebkitTextFillColor: 'transparent',
                   color: 'transparent',
                 }}
@@ -159,7 +134,7 @@ const Landing = () => {
                       e.stopPropagation();
                       navigate('/network');
                     }}
-                    className="px-3 py-1.5 border-2 border-[#8B4513] text-[#8B4513] rounded-md font-medium hover:bg-[#8B4513]/10 transition-colors text-xs"
+                    className="px-3 py-1.5 border-2 border-brand-purplePrimary text-brand-textPrimary rounded-md font-medium hover:bg-brand-purplePrimary/10 transition-colors text-xs"
                   >
                     EXPLORE NETWORK
                   </button>

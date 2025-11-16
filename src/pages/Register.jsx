@@ -129,11 +129,11 @@ const Register = () => {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/images/background-img.png')" }}
       />
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
       {/* Main Card */}
       <div className="relative z-10 w-full max-w-md">
-        <div className="bg-[#F5E6D3] rounded-2xl shadow-2xl p-8 md:p-10">
+        <div className="bg-brand-cardDark rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10">
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <img
@@ -145,10 +145,10 @@ const Register = () => {
 
           {/* Heading */}
           <div className="text-center mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-[#8B4513] mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
               Create Account
             </h1>
-            <p className="text-[#8B4513]/70 text-sm md:text-base">
+            <p className="text-brand-textSecondary text-sm md:text-base">
               Join Capo 靠谱 today
             </p>
           </div>
@@ -156,14 +156,14 @@ const Register = () => {
           {step === 'form' && (
             <>
               {/* Mode Toggle */}
-              <div className="flex gap-2 mb-6 p-1 bg-[#8B4513]/10 rounded-lg">
+              <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-lg border border-white/10">
                 <button
                   type="button"
                   onClick={() => setMode('manual')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     mode === 'manual'
-                      ? 'bg-[#8B4513] text-white shadow-sm'
-                      : 'text-[#8B4513]/70 hover:text-[#8B4513]'
+                      ? 'bg-brand-purplePrimary text-white shadow-sm'
+                      : 'text-brand-textSecondary hover:text-white'
                   }`}
                 >
                   Manual Entry
@@ -173,8 +173,8 @@ const Register = () => {
                   onClick={() => setMode('card')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     mode === 'card'
-                      ? 'bg-[#8B4513] text-white shadow-sm'
-                      : 'text-[#8B4513]/70 hover:text-[#8B4513]'
+                      ? 'bg-brand-purplePrimary text-white shadow-sm'
+                      : 'text-brand-textSecondary hover:text-white'
                   }`}
                 >
                   Business Card
@@ -190,7 +190,7 @@ const Register = () => {
               {mode === 'manual' ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-[#8B4513] font-medium mb-2 text-sm">
+                    <label className="block text-white font-medium mb-2 text-sm">
                       Full Name
                     </label>
                     <input
@@ -199,12 +199,12 @@ const Register = () => {
                       placeholder="John Doe"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-[#8B4513]/30 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513] placeholder-gray-400"
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[#8B4513] font-medium mb-2 text-sm">
+                    <label className="block text-white font-medium mb-2 text-sm">
                       Email
                     </label>
                     <input
@@ -213,12 +213,12 @@ const Register = () => {
                       placeholder="john@example.com"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-[#8B4513]/30 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513] placeholder-gray-400"
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[#8B4513] font-medium mb-2 text-sm">
+                    <label className="block text-white font-medium mb-2 text-sm">
                       Phone Number
                     </label>
                     <input
@@ -227,14 +227,14 @@ const Register = () => {
                       placeholder="+1 234 567 8900"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-[#8B4513]/30 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513] placeholder-gray-400"
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-[#8B4513] text-white font-bold rounded-lg hover:bg-[#A0522D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Processing...' : 'Continue'}
                   </button>
@@ -242,7 +242,7 @@ const Register = () => {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-[#8B4513] font-medium mb-2 text-sm">
+                    <label className="block text-white font-medium mb-2 text-sm">
                       Business Card Image
                     </label>
                     {cardPreview ? (
@@ -250,7 +250,7 @@ const Register = () => {
                         <img
                           src={cardPreview}
                           alt="Business card preview"
-                          className="w-full h-48 object-contain rounded-lg border-2 border-[#8B4513]/30"
+                          className="w-full h-48 object-contain rounded-lg border border-white/10"
                         />
                         <button
                           type="button"
@@ -261,7 +261,7 @@ const Register = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="border-2 border-dashed border-[#8B4513]/30 rounded-lg p-8 text-center hover:border-[#8B4513] transition-colors">
+                      <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
                         <input
                           type="file"
                           accept="image/*"
@@ -273,14 +273,14 @@ const Register = () => {
                           htmlFor="card-upload"
                           className="cursor-pointer flex flex-col items-center gap-3"
                         >
-                          <div className="p-4 bg-[#8B4513]/10 rounded-full">
-                            <Upload className="w-8 h-8 text-[#8B4513]" />
+                          <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
+                            <Upload className="w-8 h-8 text-brand-purplePrimary" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-[#8B4513]">
+                            <p className="text-sm font-medium text-white">
                               Click to upload or take a photo
                             </p>
-                            <p className="text-xs text-[#8B4513]/70 mt-1">
+                            <p className="text-xs text-brand-textSecondary mt-1">
                               PNG, JPG up to 5MB
                             </p>
                           </div>
@@ -291,7 +291,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={loading || !cardImage}
-                    className="w-full py-3 bg-[#8B4513] text-white font-bold rounded-lg hover:bg-[#A0522D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Processing...' : 'Continue'}
                   </button>
@@ -303,7 +303,7 @@ const Register = () => {
           {step === 'otp' && (
             <form onSubmit={handleVerifyOTP} className="space-y-6">
               <div className="text-center mb-4">
-                <p className="text-[#8B4513]/70 text-sm">
+                <p className="text-brand-textSecondary text-sm">
                   We've sent a verification code to your phone
                 </p>
               </div>
@@ -313,7 +313,7 @@ const Register = () => {
                 </div>
               )}
               <div>
-                <label className="block text-[#8B4513] font-medium mb-2 text-sm">
+                <label className="block text-white font-medium mb-2 text-sm">
                   Enter OTP
                 </label>
                 <input
@@ -322,14 +322,14 @@ const Register = () => {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
-                  className="w-full px-4 py-3 border border-[#8B4513]/30 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#8B4513]/50 focus:border-[#8B4513] text-[#8B4513] placeholder-gray-400 text-center text-2xl tracking-widest"
+                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary text-center text-2xl tracking-widest"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#8B4513] text-white font-bold rounded-lg hover:bg-[#A0522D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Verifying...' : 'Verify & Register'}
               </button>
@@ -339,7 +339,7 @@ const Register = () => {
                   setStep('form');
                   setOtp('');
                 }}
-                className="w-full text-sm text-[#8B4513]/70 hover:text-[#8B4513] transition-colors"
+                className="w-full text-sm text-brand-textSecondary hover:text-white transition-colors"
               >
                 Back to registration
               </button>
@@ -347,12 +347,12 @@ const Register = () => {
           )}
 
           {/* Login Link */}
-          <div className="mt-6 pt-6 border-t border-[#8B4513]/20">
-            <p className="text-center text-sm text-[#8B4513]/70 mb-2">
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-center text-sm text-brand-textSecondary mb-2">
               Already have an account?{' '}
               <button
                 onClick={() => navigate('/login')}
-                className="text-[#8B4513] font-semibold hover:underline"
+                className="text-white font-semibold hover:underline"
               >
                 Login
               </button>
@@ -363,7 +363,7 @@ const Register = () => {
           <div className="mt-4 text-center">
             <button
               onClick={() => navigate('/')}
-              className="text-sm text-[#8B4513] font-medium hover:underline"
+              className="text-sm text-white font-medium hover:underline"
             >
               Back to Home
             </button>

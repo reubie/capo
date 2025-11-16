@@ -5,21 +5,21 @@
 @layer base {
   body {
     @apply font-sans antialiased;
+    /* Use explicit colors to avoid @apply errors for custom palette here */
+    background-color: #0b0b0d; /* brand.background */
+    color: #ffffff; /* brand.textPrimary */
   }
 }
 
 @layer utilities {
-  .gradient-dark {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-  }
-  
-  .gradient-light {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
-  }
-  
-  .gradient-accent {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-  }
+  .gradient-dark { background: linear-gradient(135deg, #0b0b0d 0%, #111113 100%); }
+  .gradient-light { background: linear-gradient(135deg, #6a1bff 0%, #3bb8ff 100%); }
+  .gradient-accent { background: linear-gradient(135deg, #9b4dff 0%, #46eaff 100%); }
+  .btn-primary { @apply bg-brand-purplePrimary text-white hover:bg-brand-purpleLight; }
+  .btn-secondary { @apply bg-brand-bluePrimary text-white hover:bg-brand-blueGlow; }
+  /* Avoid @apply for custom nested palette names here */
+  .card { background-color: #111113; color: #ffffff; }
+  .text-secondary { color: #cfcfcf; }
 }
 
 @layer components {
