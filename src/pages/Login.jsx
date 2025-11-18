@@ -1,67 +1,68 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Phone } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Mail, Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
-import { validatePhone } from '../utils/helpers';
+import { validateEmail, handleBackendResponse, getErrorMessage } from '../utils/helpers';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+  const location = useLocation();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Get the intended destination from navigation state, or default to /gifticon
+  const from = location.state?.from?.pathname || '/gifticon';
 
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (!validatePhone(phone)) {
-      setError('Please enter a valid phone number');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // TODO: Replace with actual API call
-      // await authAPI.sendOTP(phone);
-      console.log('Sending OTP to:', phone);
-      
-      // Simulate API call
-      setTimeout(() => {
-        setStep('otp');
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP');
-      setLoading(false);
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    if (!validateEmail(formData.email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await authAPI.login(phone, otp);
-      // localStorage.setItem('token', response.data.token);
+      // Call backend login endpoint: POST /user/login
+      const response = await authAPI.login({
+        email: formData.email,
+        password: formData.password,
+      });
       
-      console.log('Logging in with:', { phone, otp });
+      // Handle backend response format: { code, message, data }
+      const result = handleBackendResponse(response.data);
       
-      // Simulate API call
-      setTimeout(() => {
+      if (result.success) {
+        // Success - save accessToken from data
+        if (result.data?.accessToken) {
+          localStorage.setItem('token', result.data.accessToken);
+        }
+        
+        // Redirect to intended destination or default to /gifticon
+        navigate(from, { replace: true });
+      } else {
+        // Show error message
+        setError(result.message);
         setLoading(false);
-        navigate('/gifticon');
-      }, 1000);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+      // Handle network errors or HTTP errors using helper function
+      setError(getErrorMessage(err));
       setLoading(false);
     }
   };
@@ -93,86 +94,60 @@ const Login = () => {
               Welcome Back
             </h1>
             <p className="text-brand-textSecondary text-sm md:text-base">
-              {step === 'phone' ? 'Enter your phone number to continue' : 'Enter the OTP sent to your phone'}
+              Enter your credentials to continue
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
               {error}
             </div>
           )}
 
-          {step === 'phone' ? (
-            <form onSubmit={handleSendOTP} className="space-y-6">
-              {/* Phone Number Input */}
-              <div>
-                <label className="flex items-center gap-2 text-white font-medium mb-2 text-sm">
-                  <Phone className="w-4 h-4" />
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+1 234 567 8900"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
-                  required
-                />
-              </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Email Input */}
+            <div>
+              <label className="flex items-center gap-2 text-white font-medium mb-2 text-sm">
+                <Mail className="w-4 h-4" />
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                placeholder="john@example.com"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                required
+              />
+            </div>
 
-              {/* Send OTP Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="text-sm text-brand-textSecondary mb-4 text-center">
-                OTP sent to <span className="font-semibold text-white">{phone}</span>
-              </div>
-              
-              {/* OTP Input */}
-              <div>
-                <label className="block text-white font-medium mb-2 text-sm">
-                  Enter OTP
-                </label>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary text-center text-2xl tracking-widest"
-                  required
-                />
-              </div>
+            {/* Password Input */}
+            <div>
+              <label className="flex items-center gap-2 text-white font-medium mb-2 text-sm">
+                <Lock className="w-4 h-4" />
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                required
+              />
+            </div>
 
-              {/* Login Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Verifying...' : 'Login'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('phone');
-                  setOtp('');
-                }}
-                className="w-full text-sm text-brand-textSecondary hover:text-white transition-colors"
-              >
-                Change phone number
-              </button>
-            </form>
-          )}
+            {/* Login Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
 
           {/* Registration Link */}
           <div className="mt-6 pt-6 border-t border-white/10">

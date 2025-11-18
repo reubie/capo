@@ -1,6 +1,9 @@
 import axios from 'axios';
+import { getToken, removeToken } from './auth';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// Default to Spring Boot backend port (usually 8080)
+// Note: Remove /api if your backend doesn't use it as a prefix
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -12,7 +15,7 @@ const api = axios.create({
 // Request interceptor for adding auth tokens
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,7 +31,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      // Unauthorized - remove token and redirect to login
+      removeToken();
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -39,7 +43,10 @@ export default api;
 
 // API functions (ready for backend integration)
 export const authAPI = {
-  login: (phone, otp) => api.post('/auth/login', { phone, otp }),
+  // Signup endpoint matching backend: POST /user/signup
+  signup: (data) => api.post('/user/signup', data), // { email, password, name }
+  // Login endpoint matching backend: POST /user/login
+  login: (data) => api.post('/user/login', data), // { email, password }
   register: (data) => api.post('/auth/register', data),
   sendOTP: (phone) => api.post('/auth/send-otp', { phone }),
   uploadBusinessCard: (formData) => api.post('/auth/register-with-card', formData),

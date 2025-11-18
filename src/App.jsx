@@ -5,16 +5,51 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Gifticon from './pages/Gifticon';
 import Network from './pages/Network';
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/gifticon" element={<Gifticon />} />
-        <Route path="/network" element={<Network />} />
+        
+        {/* Public routes that redirect if already authenticated */}
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } 
+        />
+        <Route 
+          path="/register" 
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } 
+        />
+        
+        {/* Protected routes that require authentication */}
+        <Route 
+          path="/gifticon" 
+          element={
+            <ProtectedRoute>
+              <Gifticon />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/network" 
+          element={
+            <ProtectedRoute>
+              <Network />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </Router>
   );

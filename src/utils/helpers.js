@@ -33,3 +33,56 @@ export function validatePhone(phone) {
   return cleaned.length >= 10;
 }
 
+// Backend response format: { code, message, data }
+// Handle backend API responses and extract error messages
+export function handleBackendResponse(responseData) {
+  if (!responseData || typeof responseData !== 'object') {
+    return { success: false, message: 'Invalid response from server' };
+  }
+
+  // Check if response indicates success
+  if (responseData.code === "200") {
+    return { 
+      success: true, 
+      message: responseData.message || 'Success',
+      data: responseData.data 
+    };
+  }
+
+  // Handle error codes
+  let errorMessage = responseData.message || 'An error occurred';
+  
+  switch (responseData.code) {
+    case "400001":
+      errorMessage = 'Please fill in all required fields correctly.';
+      break;
+    case "400003":
+      errorMessage = 'An account with this email already exists. Please login instead.';
+      break;
+    case "400004":
+      errorMessage = 'Email or password is incorrect. Please try again.';
+      break;
+    default:
+      errorMessage = responseData.message || 'An error occurred. Please try again.';
+  }
+
+  return { 
+    success: false, 
+    message: errorMessage,
+    code: responseData.code 
+  };
+}
+
+// Extract error message from API error
+export function getErrorMessage(error) {
+  const errorData = error?.response?.data;
+  
+  if (errorData && errorData.code) {
+    // Backend error response format
+    return handleBackendResponse(errorData).message;
+  }
+  
+  // Network or other errors
+  return error?.message || 'Network error. Please check your connection and try again.';
+}
+
