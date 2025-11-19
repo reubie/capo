@@ -138,15 +138,6 @@ const Register = () => {
       {/* Main Card */}
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-brand-cardDark rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <img
-              src="/images/logo.png"
-              alt="CAPO Logo"
-              className="w-24 h-24 md:w-28 md:h-28 object-contain"
-            />
-          </div>
-
           {/* Heading */}
           <div className="text-center mb-6">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">

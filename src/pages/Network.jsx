@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X, Grid3x3, List, Building2, Mail, Phone, Calendar } from 'lucide-react';
+import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X, Grid3x3, List, Building2, Mail, Phone, Calendar, MapPin } from 'lucide-react';
 import CardPreview from '../components/CardPreview';
 import { networkAPI } from '../utils/api';
 
@@ -41,6 +41,7 @@ const Network = () => {
           company: 'Tech Corp',
           email: 'john@techcorp.com',
           phone: '010-1234-5678',
+          address: '123 Business Park, Singapore 018956',
           date: new Date().toISOString(),
           image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=300&h=200&fit=crop',
         },
@@ -50,6 +51,7 @@ const Network = () => {
           company: 'Design Studio',
           email: 'jane@designstudio.com',
           phone: '010-9876-5432',
+          address: '456 Creative Street, Singapore 018957',
           date: new Date(Date.now() - 86400000).toISOString(),
           image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=300&h=200&fit=crop',
         },
@@ -59,6 +61,7 @@ const Network = () => {
           company: 'Global Solutions',
           email: 'michael@globalsolutions.com',
           phone: '010-5555-1234',
+          address: '789 Global Avenue, Singapore 018958',
           date: new Date(Date.now() - 172800000).toISOString(),
           image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=300&h=200&fit=crop',
         },
@@ -68,6 +71,7 @@ const Network = () => {
           company: 'Creative Agency',
           email: 'sarah@creative.com',
           phone: '010-7777-8888',
+          address: '321 Innovation Road, Singapore 018959',
           date: new Date(Date.now() - 259200000).toISOString(),
           image: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=300&h=200&fit=crop',
         },
@@ -77,6 +81,7 @@ const Network = () => {
           company: 'Innovation Labs',
           email: 'david@innovation.com',
           phone: '010-2222-3333',
+          address: '654 Tech Boulevard, Singapore 018960',
           date: new Date(Date.now() - 345600000).toISOString(),
           image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop',
         },
@@ -86,6 +91,7 @@ const Network = () => {
           company: 'Digital Marketing',
           email: 'lisa@digitalmarketing.com',
           phone: '010-4444-5555',
+          address: '987 Marketing Lane, Singapore 018961',
           date: new Date(Date.now() - 432000000).toISOString(),
           image: 'https://images.unsplash.com/photo-1556155092-8707de31f9c4?w=300&h=200&fit=crop',
         },
@@ -326,13 +332,25 @@ const Network = () => {
           </div>
         ) : (
           <div className="bg-brand-cardDark rounded-xl shadow-lg border border-white/10 overflow-hidden">
+            {/* Table Header */}
+            <div className="hidden md:grid md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] gap-4 p-4 border-b border-white/10 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
+              <div></div>
+              <div>Name</div>
+              <div>Company</div>
+              <div>Phone</div>
+              <div>Email</div>
+              <div>Address</div>
+              <div>Date</div>
+              <div></div>
+            </div>
             <div className="divide-y divide-white/10">
               {filteredCards.map((card) => (
                 <div
                   key={card.id}
                   onClick={() => setSelectedCard(card)}
-                  className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors group"
+                  className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors group items-center"
                 >
+                  {/* Thumbnail */}
                   <div className="flex-shrink-0">
                     {card.image ? (
                       <img
@@ -349,32 +367,98 @@ const Network = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white mb-1 truncate">
+                  
+                  {/* Name */}
+                  <div className="min-w-0">
+                    <div className="md:hidden text-xs text-brand-textSecondary mb-1">Name</div>
+                    <div className="font-semibold text-white truncate">
                       {card.name || 'Unknown'}
-                    </h3>
-                    {card.company && (
-                      <p className="text-sm text-brand-textSecondary truncate">
-                        {card.company}
-                      </p>
-                    )}
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  
+                  {/* Company */}
+                  <div className="hidden md:block min-w-0">
+                    <div className="text-sm text-brand-textSecondary truncate">
+                      {card.company || '-'}
+                    </div>
+                  </div>
+                  
+                  {/* Phone */}
+                  <div className="hidden md:block min-w-0">
+                    <div className="text-sm text-brand-textSecondary truncate">
+                      {card.phone || '-'}
+                    </div>
+                  </div>
+                  
+                  {/* Email */}
+                  <div className="hidden md:block min-w-0">
+                    <div className="text-sm text-brand-textSecondary truncate">
+                      {card.email || '-'}
+                    </div>
+                  </div>
+                  
+                  {/* Address */}
+                  <div className="hidden md:block min-w-0">
+                    <div className="text-sm text-brand-textSecondary truncate">
+                      {card.address || '-'}
+                    </div>
+                  </div>
+                  
+                  {/* Date */}
+                  <div className="hidden md:block text-right">
                     {card.date && (
-                      <p className="text-xs text-brand-textSecondary">
+                      <div className="text-xs text-brand-textSecondary">
                         {new Date(card.date).toLocaleDateString()}
-                      </p>
+                      </div>
                     )}
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCard(card.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity p-2"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  
+                  {/* Delete Button */}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCard(card.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity p-2"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {/* Mobile: Additional Details */}
+                  <div className="md:hidden col-span-2 space-y-1 mt-2 pt-2 border-t border-white/10">
+                    {card.company && (
+                      <div className="flex items-center gap-2 text-sm text-brand-textSecondary">
+                        <Building2 className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{card.company}</span>
+                      </div>
+                    )}
+                    {card.phone && (
+                      <div className="flex items-center gap-2 text-sm text-brand-textSecondary">
+                        <Phone className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{card.phone}</span>
+                      </div>
+                    )}
+                    {card.email && (
+                      <div className="flex items-center gap-2 text-sm text-brand-textSecondary">
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{card.email}</span>
+                      </div>
+                    )}
+                    {card.address && (
+                      <div className="flex items-center gap-2 text-sm text-brand-textSecondary">
+                        <MapPin className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{card.address}</span>
+                      </div>
+                    )}
+                    {card.date && (
+                      <div className="flex items-center gap-2 text-xs text-brand-textSecondary mt-2">
+                        <Calendar className="w-3 h-3 flex-shrink-0" />
+                        <span>{new Date(card.date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -459,60 +543,85 @@ const Network = () => {
       {/* Card Preview Modal (for list view) */}
       {selectedCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-brand-cardDark rounded-2xl p-8 max-w-2xl w-full relative shadow-2xl border border-white/10">
+          <div className="bg-brand-cardDark rounded-2xl p-8 max-w-4xl w-full relative shadow-2xl border border-white/10">
             <button
               onClick={() => setSelectedCard(null)}
-              className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors z-10"
             >
               <X className="w-6 h-6" />
             </button>
-            <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* Business Card Image */}
               {selectedCard.image && (
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 w-full md:w-80">
                   <img
                     src={selectedCard.image}
-                    alt={selectedCard.name}
-                    className="w-full md:w-64 h-auto rounded-lg border border-white/10 object-contain"
+                    alt={`${selectedCard.name}'s business card`}
+                    className="w-full h-auto rounded-lg border border-white/10 shadow-lg object-contain bg-white/5"
                     onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Crect fill="%23111113" width="256" height="256"/%3E%3C/svg%3E';
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="200"%3E%3Crect fill="%23111113" width="320" height="200"/%3E%3C/svg%3E';
                     }}
                   />
                 </div>
               )}
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-white mb-4">
+              {/* Details */}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-3xl font-bold text-white mb-6">
                   {selectedCard.name || 'Unknown'}
                 </h2>
-                {selectedCard.company && (
-                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
-                    <Building2 className="w-5 h-5" />
-                    <span>{selectedCard.company}</span>
-                  </div>
-                )}
-                {selectedCard.email && (
-                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
-                    <Mail className="w-5 h-5" />
-                    <span>{selectedCard.email}</span>
-                  </div>
-                )}
-                {selectedCard.phone && (
-                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
-                    <Phone className="w-5 h-5" />
-                    <span>{selectedCard.phone}</span>
-                  </div>
-                )}
-                {selectedCard.date && (
-                  <div className="flex items-center gap-2 text-brand-textSecondary mb-4">
-                    <Calendar className="w-5 h-5" />
-                    <span>{new Date(selectedCard.date).toLocaleDateString()}</span>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  {selectedCard.company && (
+                    <div className="flex items-start gap-3 text-brand-textSecondary">
+                      <Building2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Company</div>
+                        <div className="text-white">{selectedCard.company}</div>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCard.phone && (
+                    <div className="flex items-start gap-3 text-brand-textSecondary">
+                      <Phone className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Phone</div>
+                        <div className="text-white">{selectedCard.phone}</div>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCard.email && (
+                    <div className="flex items-start gap-3 text-brand-textSecondary">
+                      <Mail className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Email Address</div>
+                        <div className="text-white break-all">{selectedCard.email}</div>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCard.address && (
+                    <div className="flex items-start gap-3 text-brand-textSecondary">
+                      <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Physical Address</div>
+                        <div className="text-white">{selectedCard.address}</div>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCard.date && (
+                    <div className="flex items-start gap-3 text-brand-textSecondary">
+                      <Calendar className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Date Added</div>
+                        <div className="text-white">{new Date(selectedCard.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     handleDeleteCard(selectedCard.id);
                     setSelectedCard(null);
                   }}
-                  className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
+                  className="mt-6 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
                 >
                   Delete Card
                 </button>
