@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { authAPI } from '../utils/api';
-import { validateEmail, handleBackendResponse, getErrorMessage } from '../utils/helpers';
+import { validateEmail, validatePhone } from '../utils/helpers';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -10,13 +10,18 @@ const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
+    phone: '',
   });
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState('form'); // 'form' or 'otp'
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    document.title = 'Show you care - Register';
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -49,7 +54,7 @@ const Register = () => {
     setError('');
 
     if (mode === 'manual') {
-      if (!formData.name || !formData.email || !formData.password) {
+      if (!formData.name || !formData.email || !formData.phone) {
         setError('Please fill in all fields');
         return;
       }
@@ -57,12 +62,8 @@ const Register = () => {
         setError('Please enter a valid email address');
         return;
       }
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters');
-        return;
-      }
-      if (formData.password !== confirmPassword) {
-        setError('Passwords do not match');
+      if (!validatePhone(formData.phone)) {
+        setError('Please enter a valid phone number');
         return;
       }
     } else {
@@ -75,45 +76,55 @@ const Register = () => {
     setLoading(true);
     try {
       if (mode === 'manual') {
-        // Call backend signup endpoint: POST /user/signup
-        const response = await authAPI.signup({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        });
-        
-        // Handle backend response format: { code, message, data }
-        const result = handleBackendResponse(response.data);
-        
-        if (result.success) {
-          // Success - save token if provided in data
-          if (result.data?.token) {
-            localStorage.setItem('token', result.data.token);
-          }
-          
-          // Redirect to gifticon page
-          navigate('/gifticon');
-        } else {
-          // Show error message
-          setError(result.message);
-          setLoading(false);
-        }
+        // TODO: Replace with actual API call
+        // await authAPI.register(formData);
+        console.log('Registering with:', formData);
       } else {
         const formDataToSend = new FormData();
         formDataToSend.append('card', cardImage);
-        // TODO: Replace with actual API call when backend supports it
+        // TODO: Replace with actual API call
         // await authAPI.uploadBusinessCard(formDataToSend);
         console.log('Registering with business card');
-        setError('Business card registration not yet implemented');
-        setLoading(false);
       }
+
+      // Simulate API call
+      setTimeout(() => {
+        setStep('otp');
+        setLoading(false);
+      }, 1000);
     } catch (err) {
-      // Handle network errors or HTTP errors using helper function
-      setError(getErrorMessage(err));
+      setError(err.response?.data?.message || 'Registration failed');
       setLoading(false);
     }
   };
 
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // TODO: Replace with actual API call
+      // const response = await authAPI.register({ ...formData, otp });
+      // localStorage.setItem('token', response.data.token);
+      
+      console.log('Verifying OTP:', otp);
+      
+      // Simulate API call
+      setTimeout(() => {
+        setLoading(false);
+        navigate('/gifticon');
+      }, 1000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
@@ -142,96 +153,180 @@ const Register = () => {
               Create Account
             </h1>
             <p className="text-brand-textSecondary text-sm md:text-base">
-              Join Capo 靠谱 today
+              Join Show you care today
             </p>
           </div>
 
-          {/* Mode Toggle */}
-          <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-lg border border-white/10">
-            <button
-              type="button"
-              onClick={() => setMode('manual')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                mode === 'manual'
-                  ? 'bg-brand-purplePrimary text-white shadow-sm'
-                  : 'text-brand-textSecondary hover:text-white'
-              }`}
-            >
-              Manual Entry
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('card')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                mode === 'card'
-                  ? 'bg-brand-purplePrimary text-white shadow-sm'
-                  : 'text-brand-textSecondary hover:text-white'
-              }`}
-            >
-              Business Card
-            </button>
-          </div>
+          {step === 'form' && (
+            <>
+              {/* Mode Toggle */}
+              <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-lg border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setMode('manual')}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                    mode === 'manual'
+                      ? 'bg-brand-purplePrimary text-white shadow-sm'
+                      : 'text-brand-textSecondary hover:text-white'
+                  }`}
+                >
+                  Manual Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('card')}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                    mode === 'card'
+                      ? 'bg-brand-purplePrimary text-white shadow-sm'
+                      : 'text-brand-textSecondary hover:text-white'
+                  }`}
+                >
+                  Business Card
+                </button>
+              </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
-              {error}
-            </div>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+
+              {mode === 'manual' ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-white font-medium mb-2 text-sm">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="John Doe"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2 text-sm">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="john@example.com"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white font-medium mb-2 text-sm">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      placeholder="+1 234 567 8900"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Processing...' : 'Continue'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-white font-medium mb-2 text-sm">
+                      Business Card Image
+                    </label>
+                    {cardPreview ? (
+                      <div className="relative">
+                        <img
+                          src={cardPreview}
+                          alt="Business card preview"
+                          className="w-full h-48 object-contain rounded-lg border border-white/10"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveCard}
+                          className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCardUpload}
+                          className="hidden"
+                          id="card-upload"
+                        />
+                        <label
+                          htmlFor="card-upload"
+                          className="cursor-pointer flex flex-col items-center gap-3"
+                        >
+                          <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
+                            <Upload className="w-8 h-8 text-brand-purplePrimary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              Click to upload or take a photo
+                            </p>
+                            <p className="text-xs text-brand-textSecondary mt-1">
+                              PNG, JPG up to 5MB
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !cardImage}
+                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Processing...' : 'Continue'}
+                  </button>
+                </form>
+              )}
+            </>
           )}
 
-          {mode === 'manual' ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+          {step === 'otp' && (
+            <form onSubmit={handleVerifyOTP} className="space-y-6">
+              <div className="text-center mb-4">
+                <p className="text-brand-textSecondary text-sm">
+                  We've sent a verification code to your phone
+                </p>
+              </div>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
               <div>
                 <label className="block text-white font-medium mb-2 text-sm">
-                  Full Name
+                  Enter OTP
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2 text-sm">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="john@example.com"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2 text-sm">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2 text-sm">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  maxLength={6}
+                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary text-center text-2xl tracking-widest"
                   required
                 />
               </div>
@@ -240,64 +335,17 @@ const Register = () => {
                 disabled={loading}
                 className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {loading ? 'Verifying...' : 'Verify & Register'}
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-white font-medium mb-2 text-sm">
-                  Business Card Image
-                </label>
-                {cardPreview ? (
-                  <div className="relative">
-                    <img
-                      src={cardPreview}
-                      alt="Business card preview"
-                      className="w-full h-48 object-contain rounded-lg border border-white/10"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveCard}
-                      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCardUpload}
-                      className="hidden"
-                      id="card-upload"
-                    />
-                    <label
-                      htmlFor="card-upload"
-                      className="cursor-pointer flex flex-col items-center gap-3"
-                    >
-                      <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
-                        <Upload className="w-8 h-8 text-brand-purplePrimary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">
-                          Click to upload or take a photo
-                        </p>
-                        <p className="text-xs text-brand-textSecondary mt-1">
-                          PNG, JPG up to 5MB
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-              </div>
               <button
-                type="submit"
-                disabled={loading || !cardImage}
-                className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  setStep('form');
+                  setOtp('');
+                }}
+                className="w-full text-sm text-brand-textSecondary hover:text-white transition-colors"
               >
-                {loading ? 'Processing...' : 'Continue'}
+                Back to registration
               </button>
             </form>
           )}

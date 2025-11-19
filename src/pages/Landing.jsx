@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Landing = () => {
@@ -9,6 +9,10 @@ const Landing = () => {
   // Format: [topRight%, bottomRight%] - adjust these percentages to align with the image
   const diagonalTop = 60; // Percentage from left at the top
   const diagonalBottom = 40; // Percentage from left at the bottom
+
+  useEffect(() => {
+    document.title = 'Show you care - Gifticon & Network';
+  }, []);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -30,8 +34,8 @@ const Landing = () => {
             alt="CAPO Logo"
             className="w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 object-contain drop-shadow-lg group-hover:scale-105 transition-transform"
           />
-          <span className="text-xl md:text-2xl lg:text-3xl font-bold text-white tracking-tight drop-shadow-lg">
-            Capo <span className="text-yellow-400">靠谱</span>
+          <span className="text-lg md:text-xl lg:text-2xl font-semibold text-white tracking-normal drop-shadow-lg">
+            SHOW YOU <span className="text-yellow-400">CARE</span>
           </span>
         </button>
       </div>
@@ -127,19 +131,6 @@ const Landing = () => {
               >
                 NETWORK
               </h2>
-              {hoveredSide === 'network' && (
-                <div className="absolute top-full mt-4 right-0 animate-fade-in space-y-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/network');
-                    }}
-                    className="px-3 py-1.5 border-2 border-brand-purplePrimary text-brand-textPrimary rounded-md font-medium hover:bg-brand-purplePrimary/10 transition-colors text-xs"
-                  >
-                    EXPLORE NETWORK
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X } from 'lucide-react';
+import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X, Grid3x3, List, Building2, Mail, Phone, Calendar } from 'lucide-react';
 import CardPreview from '../components/CardPreview';
 import { networkAPI } from '../utils/api';
 
@@ -11,13 +11,16 @@ const Network = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBy, setFilterBy] = useState('all'); // 'all', 'date', 'name', 'company'
+  const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
 
   useEffect(() => {
     loadCards();
+    document.title = 'Show you care - Network';
   }, []);
 
   useEffect(() => {
@@ -216,7 +219,7 @@ const Network = () => {
                 <span className="hidden sm:inline">Back to Home</span>
               </button>
               <h1 className="text-2xl font-bold text-white">
-                Capo <span className="text-brand-purplePrimary">Network</span>
+                Show you <span className="text-yellow-400">care</span> <span className="text-brand-purplePrimary">Network</span>
               </h1>
             </div>
             <button
@@ -258,6 +261,30 @@ const Network = () => {
                 <option value="company">Sort by Company</option>
               </select>
             </div>
+            <div className="flex items-center gap-2 border border-white/10 rounded-lg p-1 bg-white/5">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-brand-purplePrimary text-white'
+                    : 'text-brand-textSecondary hover:text-white hover:bg-white/10'
+                }`}
+                title="Grid View"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-brand-purplePrimary text-white'
+                    : 'text-brand-textSecondary hover:text-white hover:bg-white/10'
+                }`}
+                title="List View"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
             <button
               onClick={() => setShowUploadModal(true)}
               className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center justify-center gap-2"
@@ -287,7 +314,7 @@ const Network = () => {
               Add Your First Card
             </button>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCards.map((card) => (
               <CardPreview
@@ -296,6 +323,61 @@ const Network = () => {
                 onDelete={handleDeleteCard}
               />
             ))}
+          </div>
+        ) : (
+          <div className="bg-brand-cardDark rounded-xl shadow-lg border border-white/10 overflow-hidden">
+            <div className="divide-y divide-white/10">
+              {filteredCards.map((card) => (
+                <div
+                  key={card.id}
+                  onClick={() => setSelectedCard(card)}
+                  className="flex items-center gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors group"
+                >
+                  <div className="flex-shrink-0">
+                    {card.image ? (
+                      <img
+                        src={card.image}
+                        alt={card.name}
+                        className="w-12 h-12 rounded object-cover border border-white/10"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23111113" width="48" height="48"/%3E%3C/svg%3E';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded bg-white/5 border border-white/10 flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-brand-textSecondary" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white mb-1 truncate">
+                      {card.name || 'Unknown'}
+                    </h3>
+                    {card.company && (
+                      <p className="text-sm text-brand-textSecondary truncate">
+                        {card.company}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {card.date && (
+                      <p className="text-xs text-brand-textSecondary">
+                        {new Date(card.date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCard(card.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity p-2"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -370,6 +452,72 @@ const Network = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Card Preview Modal (for list view) */}
+      {selectedCard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-brand-cardDark rounded-2xl p-8 max-w-2xl w-full relative shadow-2xl border border-white/10">
+            <button
+              onClick={() => setSelectedCard(null)}
+              className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="flex flex-col md:flex-row gap-6">
+              {selectedCard.image && (
+                <div className="flex-shrink-0">
+                  <img
+                    src={selectedCard.image}
+                    alt={selectedCard.name}
+                    className="w-full md:w-64 h-auto rounded-lg border border-white/10 object-contain"
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Crect fill="%23111113" width="256" height="256"/%3E%3C/svg%3E';
+                    }}
+                  />
+                </div>
+              )}
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-white mb-4">
+                  {selectedCard.name || 'Unknown'}
+                </h2>
+                {selectedCard.company && (
+                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
+                    <Building2 className="w-5 h-5" />
+                    <span>{selectedCard.company}</span>
+                  </div>
+                )}
+                {selectedCard.email && (
+                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
+                    <Mail className="w-5 h-5" />
+                    <span>{selectedCard.email}</span>
+                  </div>
+                )}
+                {selectedCard.phone && (
+                  <div className="flex items-center gap-2 text-brand-textSecondary mb-3">
+                    <Phone className="w-5 h-5" />
+                    <span>{selectedCard.phone}</span>
+                  </div>
+                )}
+                {selectedCard.date && (
+                  <div className="flex items-center gap-2 text-brand-textSecondary mb-4">
+                    <Calendar className="w-5 h-5" />
+                    <span>{new Date(selectedCard.date).toLocaleDateString()}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    handleDeleteCard(selectedCard.id);
+                    setSelectedCard(null);
+                  }}
+                  className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
+                >
+                  Delete Card
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

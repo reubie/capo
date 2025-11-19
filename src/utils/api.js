@@ -32,8 +32,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Unauthorized - remove token and redirect to login
+      // Skip redirect if on gifticon or network page (allows UI testing without auth)
+      const isGifticonPage = window.location.pathname === '/gifticon';
+      const isNetworkPage = window.location.pathname === '/network';
       removeToken();
-      window.location.href = '/login';
+      if (!isGifticonPage && !isNetworkPage) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

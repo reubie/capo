@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
@@ -16,6 +16,10 @@ const Login = () => {
   
   // Get the intended destination from navigation state, or default to /gifticon
   const from = location.state?.from?.pathname || '/gifticon';
+
+  useEffect(() => {
+    document.title = 'Show you care - Login';
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

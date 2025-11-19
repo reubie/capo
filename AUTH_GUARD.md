@@ -115,3 +115,4 @@ function MyComponent() {
 - 401 responses automatically trigger logout
 - Protected routes check authentication on every render
 
+

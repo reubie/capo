@@ -19,7 +19,7 @@ const ProductCard = ({ product, onPurchase }) => {
           {product.name}
         </h3>
         <p className="text-2xl font-bold text-brand-purpleLight mb-4">
-          ₩{product.price?.toLocaleString() || '0'}
+          S${product.price?.toLocaleString() || '0'}
         </p>
         <button
           onClick={() => onPurchase(product)}

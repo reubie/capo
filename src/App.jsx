@@ -33,23 +33,11 @@ function App() {
           } 
         />
         
-        {/* Protected routes that require authentication */}
-        <Route 
-          path="/gifticon" 
-          element={
-            <ProtectedRoute>
-              <Gifticon />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/network" 
-          element={
-            <ProtectedRoute>
-              <Network />
-            </ProtectedRoute>
-          } 
-        />
+        {/* Gifticon route - accessible without authentication for UI testing */}
+        <Route path="/gifticon" element={<Gifticon />} />
+        
+        {/* Network route - accessible without authentication for UI testing */}
+        <Route path="/network" element={<Network />} />
       </Routes>
     </Router>
   );
