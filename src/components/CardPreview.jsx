@@ -4,14 +4,14 @@ import { cn } from '../utils/helpers';
 
 const CardPreview = ({ card, onDelete, className = '' }) => {
   return (
-    <div className={cn('bg-brand-cardDark rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-4 border border-white/10', className)}>
-      <div className="flex gap-4">
+    <div className={cn('bg-brand-cardDark rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-3 xs:p-4 border border-white/10', className)}>
+      <div className="flex gap-3 xs:gap-4">
         {card.image && (
           <div className="flex-shrink-0">
             <img
               src={card.image}
               alt={card.name}
-              className="w-20 h-20 rounded-lg object-cover border border-white/10"
+              className="w-16 h-16 xs:w-20 xs:h-20 tablet:w-24 tablet:h-24 rounded-lg object-cover border border-white/10"
               onError={(e) => {
                 e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23111113" width="80" height="80"/%3E%3C/svg%3E';
               }}
@@ -19,25 +19,25 @@ const CardPreview = ({ card, onDelete, className = '' }) => {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg text-white mb-2 truncate">
+          <h3 className="font-semibold text-sm xs:text-base sm:text-lg tablet:text-xl text-white mb-1 xs:mb-2 truncate">
             {card.name || 'Unknown'}
           </h3>
           {card.company && (
             <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
-              <Building2 className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm truncate">{card.company}</span>
+              <Building2 className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
+              <span className="text-xs xs:text-sm truncate">{card.company}</span>
             </div>
           )}
           {card.email && (
             <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
-              <Mail className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm truncate">{card.email}</span>
+              <Mail className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
+              <span className="text-xs xs:text-sm truncate">{card.email}</span>
             </div>
           )}
           {card.phone && (
             <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
-              <Phone className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm truncate">{card.phone}</span>
+              <Phone className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
+              <span className="text-xs xs:text-sm truncate">{card.phone}</span>
             </div>
           )}
           {card.date && (
@@ -53,7 +53,7 @@ const CardPreview = ({ card, onDelete, className = '' }) => {
       {onDelete && (
         <button
           onClick={() => onDelete(card.id)}
-          className="mt-3 text-sm text-red-500 hover:text-red-400 font-medium"
+          className="mt-2 xs:mt-3 text-xs xs:text-sm text-red-500 hover:text-red-400 font-medium"
         >
           Delete
         </button>

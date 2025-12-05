@@ -4,11 +4,6 @@ import { useNavigate } from 'react-router-dom';
 const Landing = () => {
   const navigate = useNavigate();
   const [hoveredSide, setHoveredSide] = useState(null);
-  
-  // Adjust these values to match the exact diagonal in your background image
-  // Format: [topRight%, bottomRight%] - adjust these percentages to align with the image
-  const diagonalTop = 60; // Percentage from left at the top
-  const diagonalBottom = 40; // Percentage from left at the bottom
 
   useEffect(() => {
     document.title = 'Show you care - Gifticon & Network';
@@ -23,71 +18,65 @@ const Landing = () => {
       />
       
       {/* Top Left Brand */}
-      <div className="absolute top-0 left-0 z-50 p-4 md:p-6">
+      <div className="absolute top-0 left-0 z-50 p-2 xs:p-3 sm:p-4 md:p-5 tablet:p-6 laptop:p-8 max-w-[calc(100%-140px)] xs:max-w-[calc(100%-180px)] sm:max-w-none">
         <button
           onClick={() => navigate('/')}
           className="hover:opacity-80 transition-opacity"
           aria-label="Go to home"
         >
-          <span className="text-lg md:text-xl lg:text-2xl font-semibold text-white tracking-normal drop-shadow-lg">
+          <span className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl desktop:text-4xl font-semibold text-white tracking-normal drop-shadow-lg whitespace-nowrap">
             SHOW YOU <span className="text-yellow-400">CARE</span>
           </span>
         </button>
       </div>
 
       {/* Top Right Navigation */}
-      <div className="absolute top-0 right-0 z-50 flex items-center p-4 md:p-6 gap-3">
+      <div className="absolute top-0 right-0 z-50 flex items-center p-2 xs:p-3 sm:p-4 md:p-5 tablet:p-6 laptop:p-8 gap-1.5 xs:gap-2 sm:gap-3 flex-shrink-0">
         <button
           onClick={() => navigate('/register')}
-          className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors"
+          className="bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors whitespace-nowrap"
+          style={{
+            padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
+            fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
+            lineHeight: '1.5',
+          }}
         >
           Register
         </button>
         <button
           onClick={() => navigate('/login')}
-          className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors"
+          className="bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors whitespace-nowrap"
+          style={{
+            padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
+            fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
+            lineHeight: '1.5',
+          }}
         >
           Login
         </button>
       </div>
 
-      {/* Diagonal Split Container */}
+      {/* Split Container - Left and Right Clickable Areas */}
       <div className="relative h-screen w-full overflow-hidden">
-        {/* Left Side - GIFTICON (Purple overlay) */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(106, 27, 255, 0.35) 0%, rgba(106, 27, 255, 0.35) 50%, transparent 100%)',
-            clipPath: `polygon(0 0, ${diagonalTop}% 0, ${diagonalBottom}% 100%, 0 100%)`,
-          }}
-        >
-          <div 
-            className="absolute inset-0 cursor-pointer transition-all duration-300"
-            onMouseEnter={() => setHoveredSide('gifticon')}
-            onMouseLeave={() => setHoveredSide(null)}
-            onClick={() => navigate('/gifticon')}
-          />
-        </div>
+        {/* Left Side - GIFTICON (Clickable) */}
+        <div 
+          className="absolute inset-0 left-0 w-1/2 cursor-pointer transition-all duration-300 hover:bg-purple-500/10"
+          onMouseEnter={() => setHoveredSide('gifticon')}
+          onMouseLeave={() => setHoveredSide(null)}
+          onClick={() => navigate('/gifticon')}
+        />
 
-        {/* Right Side - NETWORK (Blue overlay) */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, transparent 0%, rgba(59, 184, 255, 0.35) 50%, rgba(59, 184, 255, 0.35) 100%)',
-            clipPath: `polygon(${diagonalTop}% 0, 100% 0, 100% 100%, ${diagonalBottom}% 100%)`,
-          }}
-        >
-          <div 
-            className="absolute inset-0 cursor-pointer transition-all duration-300"
-            onMouseEnter={() => setHoveredSide('network')}
-            onMouseLeave={() => setHoveredSide(null)}
-            onClick={() => navigate('/network')}
-          />
-        </div>
+        {/* Right Side - NETWORK (Clickable) */}
+        <div 
+          className="absolute inset-0 right-0 w-1/2 cursor-pointer transition-all duration-300 hover:bg-blue-500/10"
+          onMouseEnter={() => setHoveredSide('network')}
+          onMouseLeave={() => setHoveredSide(null)}
+          onClick={() => navigate('/network')}
+        />
 
         {/* Central Content: Text on Sides */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-          <div className="flex items-center justify-center gap-12 md:gap-16 lg:gap-20 xl:gap-24">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 px-4">
+          <div className="flex items-center justify-center gap-8 xs:gap-10 sm:gap-12 md:gap-16 tablet:gap-20 laptop:gap-24 desktop:gap-32 desktop-lg:gap-40">
             {/* GIFTICON Text */}
             <div
               className="relative cursor-pointer transition-all duration-300"
@@ -95,7 +84,12 @@ const Landing = () => {
               onMouseLeave={() => setHoveredSide(null)}
               onClick={() => navigate('/gifticon')}
             >
-              <h2 className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white tracking-tight leading-none">
+              <h2 
+                className="font-bold text-white tracking-tight leading-none"
+                style={{
+                  fontSize: 'clamp(1.5rem, 8vw, 12rem)',
+                }}
+              >
                 GIFTICON
               </h2>
             </div>
@@ -108,8 +102,9 @@ const Landing = () => {
               onClick={() => navigate('/network')}
             >
               <h2 
-                className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-none"
+                className="font-bold tracking-tight leading-none"
                 style={{
+                  fontSize: 'clamp(1.5rem, 8vw, 12rem)',
                   WebkitTextStroke: '2px #6a1bff',
                   WebkitTextFillColor: 'transparent',
                   color: 'transparent',

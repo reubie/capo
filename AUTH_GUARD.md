@@ -116,3 +116,4 @@ function MyComponent() {
 - Protected routes check authentication on every render
 
 
+

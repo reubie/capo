@@ -14,18 +14,18 @@ const ProductCard = ({ product, onPurchase }) => {
           }}
         />
       </div>
-      <div className="p-4 bg-brand-cardDark">
-        <h3 className="font-semibold text-lg text-white mb-2 line-clamp-2">
+      <div className="p-3 xs:p-4 bg-brand-cardDark">
+        <h3 className="font-semibold text-sm xs:text-base sm:text-lg tablet:text-xl text-white mb-2 line-clamp-2">
           {product.name}
         </h3>
-        <p className="text-2xl font-bold text-brand-purpleLight mb-4">
+        <p className="text-lg xs:text-xl sm:text-2xl tablet:text-3xl font-bold text-brand-purpleLight mb-3 xs:mb-4">
           S${product.price?.toLocaleString() || '0'}
         </p>
         <button
           onClick={() => onPurchase(product)}
-          className="w-full py-2.5 bg-brand-purplePrimary text-white font-medium rounded-lg hover:bg-brand-purpleLight transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 xs:py-2.5 text-xs xs:text-sm sm:text-base bg-brand-purplePrimary text-white font-medium rounded-lg hover:bg-brand-purpleLight transition-colors flex items-center justify-center gap-2"
         >
-          <ShoppingCart className="w-4 h-4" />
+          <ShoppingCart className="w-3 h-3 xs:w-4 xs:h-4" />
           Buy
         </button>
       </div>

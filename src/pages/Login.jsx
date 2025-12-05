@@ -72,7 +72,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-3 xs:p-4 tablet:p-6 laptop:p-8">
       {/* Background Image with Blur */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -81,14 +81,14 @@ const Login = () => {
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
       {/* Main Card */}
-      <div className="relative z-10 w-full max-w-md">
-        <div className="bg-brand-cardDark rounded-2xl shadow-2xl p-8 md:p-10 border border-white/10">
+      <div className="relative z-10 w-full max-w-md laptop:max-w-lg desktop:max-w-xl">
+        <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-white/10">
           {/* Heading */}
-          <div className="text-center mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+          <div className="text-center mb-4 xs:mb-6">
+            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-white mb-2">
               Welcome Back
             </h1>
-            <p className="text-brand-textSecondary text-sm md:text-base">
+            <p className="text-brand-textSecondary text-xs xs:text-sm sm:text-base tablet:text-lg">
               Enter your credentials to continue
             </p>
           </div>

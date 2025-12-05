@@ -131,35 +131,35 @@ const Gifticon = () => {
 
       {/* Header */}
       <div className="relative bg-brand-background/80 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-2 xs:px-3 sm:px-4 tablet:px-6 laptop:px-8 desktop:px-12 py-2 xs:py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2 xs:gap-3 sm:gap-4">
+            <div className="flex items-center gap-1 xs:gap-2 sm:gap-3 min-w-0 flex-1">
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center gap-2 text-brand-textSecondary hover:text-white transition-colors font-medium"
+                className="flex items-center gap-1 text-brand-textSecondary hover:text-white transition-colors font-medium flex-shrink-0"
               >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Back to Home</span>
+                <ArrowLeft className="w-4 h-4 xs:w-5 xs:h-5" />
+                <span className="hidden sm:inline text-xs xs:text-sm">Back</span>
               </button>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-white truncate min-w-0">
                 Show you <span className="text-yellow-400">care</span> <span className="text-brand-purplePrimary">Gifticon</span>
               </h1>
             </div>
             <button
               onClick={() => navigate('/network')}
-              className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-2"
+              className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-1 xs:gap-2 flex-shrink-0 whitespace-nowrap"
             >
-              <Network className="w-4 h-4" />
-              Network
+              <Network className="w-3 h-3 xs:w-4 xs:h-4" />
+              <span className="hidden xs:inline">Network</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 tablet:px-8 laptop:px-12 desktop:px-16 py-4 xs:py-6 tablet:py-8">
         {/* Filters */}
-        <div className="bg-brand-cardDark border border-white/10 rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-brand-cardDark border border-white/10 rounded-xl p-3 xs:p-4 mb-4 xs:mb-6 grid grid-cols-1 sm:grid-cols-2 tablet:grid-cols-4 gap-3 xs:gap-4">
           <div>
             <label className="block text-sm text-brand-textSecondary mb-1">Merchant</label>
             <select value={merchantFilter} onChange={(e)=>setMerchantFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white">
@@ -197,7 +197,7 @@ const Gifticon = () => {
         ) : (
           <>
             {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 tablet:grid-cols-3 laptop:grid-cols-4 desktop:grid-cols-5 desktop-lg:grid-cols-6 desktop-xl:grid-cols-7 desktop-2xl:grid-cols-8 gap-4 xs:gap-5 sm:gap-6 mb-8 xs:mb-12">
               {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -212,13 +212,13 @@ const Gifticon = () => {
 
       {/* Payment Modal */}
       {showPaymentModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-brand-cardDark rounded-2xl p-8 max-w-md w-full relative shadow-2xl border border-white/10">
-            <button onClick={()=>setShowPaymentModal(false)} className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors">
-              <X className="w-6 h-6" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 xs:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl p-4 xs:p-6 sm:p-8 max-w-md w-full relative shadow-2xl border border-white/10 my-4">
+            <button onClick={()=>setShowPaymentModal(false)} className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-white transition-colors z-10">
+              <X className="w-5 h-5 xs:w-6 xs:h-6" />
             </button>
-            <h3 className="text-2xl font-bold text-white mb-1">Checkout</h3>
-            <p className="text-brand-textSecondary mb-6">{selectedProduct.name}</p>
+            <h3 className="text-lg xs:text-xl sm:text-2xl font-bold text-white mb-1 pr-8 xs:pr-10">Checkout</h3>
+            <p className="text-xs xs:text-sm text-brand-textSecondary mb-4 xs:mb-6 truncate pr-8 xs:pr-10">{selectedProduct.name}</p>
             <div className="space-y-3">
               <button onClick={()=>setPaymentMethod('paynow')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border ${paymentMethod==='paynow'?'border-brand-purplePrimary bg-white/10':'border-white/10 bg-white/5'} text-white`}>
                 <Wallet className="w-5 h-5" /> PayNow
@@ -239,19 +239,19 @@ const Gifticon = () => {
 
       {/* Share Modal */}
       {showShareModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-brand-cardDark rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-white/10">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 xs:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-white/10 my-4">
             {/* Fixed Header */}
-            <div className="relative p-8 pb-4 flex-shrink-0 border-b border-white/10">
-              <button onClick={closeShare} className="absolute top-4 right-4 text-brand-textSecondary hover:text-white transition-colors">
-                <X className="w-6 h-6" />
+            <div className="relative p-4 xs:p-6 sm:p-8 pb-3 xs:pb-4 flex-shrink-0 border-b border-white/10">
+              <button onClick={closeShare} className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-white transition-colors z-10">
+                <X className="w-5 h-5 xs:w-6 xs:h-6" />
               </button>
-              <h3 className="text-2xl font-bold text-white mb-1">Share your Gifticon</h3>
-              <p className="text-brand-textSecondary">{selectedProduct.name}</p>
+              <h3 className="text-lg xs:text-xl sm:text-2xl font-bold text-white mb-1 pr-8 xs:pr-10">Share your Gifticon</h3>
+              <p className="text-xs xs:text-sm text-brand-textSecondary truncate pr-8 xs:pr-10">{selectedProduct.name}</p>
             </div>
 
             {/* Scrollable Content */}
-            <div className="overflow-y-auto flex-1 p-8 pt-6">
+            <div className="overflow-y-auto flex-1 p-4 xs:p-6 sm:p-8 pt-4 xs:pt-6">
               <div className="space-y-6">
                 {/* Select name card */}
                 <div className="bg-white/5 rounded-lg p-4 border border-white/10">
