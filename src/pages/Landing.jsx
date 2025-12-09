@@ -108,6 +108,9 @@ const Landing = () => {
               onMouseEnter={() => setHoveredSide('network')}
               onMouseLeave={() => setHoveredSide(null)}
               onClick={() => navigate('/network')}
+              style={{
+                marginLeft: 'clamp(1rem, 3vw, 4rem)',
+              }}
             >
               <h2 
                 className="font-bold text-brand-orange tracking-tight leading-none drop-shadow-md"
