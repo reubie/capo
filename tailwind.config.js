@@ -11,15 +11,26 @@ export default {
       },
       colors: {
         brand: {
-          background: '#0b0b0d',
-          cardDark: '#111113',
-          purplePrimary: '#6a1bff',
-          purpleLight: '#9b4dff',
-          purpleGlow: '#b44bff',
-          bluePrimary: '#3bb8ff',
-          blueGlow: '#46eaff',
-          textPrimary: '#ffffff',
-          textSecondary: '#cfcfcf',
+          // New color palette from logo
+          background: '#FFFCED',        // Soft Cream - main background
+          backgroundAlt: '#FFFFF5',    // Off-White - alternative background
+          cardLight: '#FFFFF5',         // Off-White - card backgrounds
+          cardDark: '#55231E',         // Deep Coffee - dark cards/sections
+          orange: '#F38218',           // Vivid Orange - primary accent (replaces purple)
+          orangeLight: '#FFA64D',      // Lighter orange for hover states
+          orangeDark: '#D66B0A',      // Darker orange for active states
+          brown: '#55231E',            // Deep Coffee - text on light backgrounds
+          brownLight: '#6B2F28',       // Lighter brown for secondary text
+          textPrimary: '#55231E',      // Brown - primary text on light backgrounds
+          textSecondary: '#6B2F28',    // Lighter brown - secondary text
+          textOnDark: '#FFFCED',       // Cream - text on dark backgrounds
+          textOnDarkSecondary: '#FFFFF5', // Off-White - secondary text on dark
+          // Legacy support (mapped to new colors)
+          purplePrimary: '#F38218',    // Orange replaces purple
+          purpleLight: '#FFA64D',      // Light orange
+          purpleGlow: '#F38218',       // Orange glow
+          bluePrimary: '#F38218',      // Orange replaces blue
+          blueGlow: '#FFA64D',         // Light orange
         },
       },
       screens: {

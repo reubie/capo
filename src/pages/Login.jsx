@@ -82,10 +82,10 @@ const Login = () => {
 
       {/* Main Card */}
       <div className="relative z-10 w-full max-w-md laptop:max-w-lg desktop:max-w-xl">
-        <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-white/10">
+        <div className="bg-brand-cardLight rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-brand-brown/20">
           {/* Heading */}
           <div className="text-center mb-4 xs:mb-6">
-            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-white mb-2">
+            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-brand-brown mb-2">
               Welcome Back
             </h1>
             <p className="text-brand-textSecondary text-xs xs:text-sm sm:text-base tablet:text-lg">
@@ -94,7 +94,7 @@ const Login = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-600 text-sm">
               {error}
             </div>
           )}
@@ -102,7 +102,7 @@ const Login = () => {
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Email Input */}
             <div>
-              <label className="flex items-center gap-2 text-white font-medium mb-2 text-sm">
+              <label className="flex items-center gap-2 text-brand-brown font-medium mb-2 text-sm">
                 <Mail className="w-4 h-4" />
                 Email
               </label>
@@ -112,14 +112,14 @@ const Login = () => {
                 placeholder="john@example.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
                 required
               />
             </div>
 
             {/* Password Input */}
             <div>
-              <label className="flex items-center gap-2 text-white font-medium mb-2 text-sm">
+              <label className="flex items-center gap-2 text-brand-brown font-medium mb-2 text-sm">
                 <Lock className="w-4 h-4" />
                 Password
               </label>
@@ -129,7 +129,7 @@ const Login = () => {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
                 required
               />
             </div>
@@ -138,19 +138,19 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
           {/* Registration Link */}
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-brand-brown/20">
             <p className="text-center text-sm text-brand-textSecondary mb-2">
               Don't have an account?{' '}
               <button
                 onClick={() => navigate('/register')}
-                className="text-white font-semibold hover:underline"
+                className="text-brand-orange font-semibold hover:underline"
               >
                 Register
               </button>
@@ -161,7 +161,7 @@ const Login = () => {
           <div className="mt-4 text-center">
             <button
               onClick={() => navigate('/')}
-              className="text-sm text-white font-medium hover:underline"
+              className="text-sm text-brand-brown font-medium hover:underline"
             >
               Back to Home
             </button>

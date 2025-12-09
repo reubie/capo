@@ -37,7 +37,7 @@ api.interceptors.response.use(
       const isNetworkPage = window.location.pathname === '/network';
       removeToken();
       if (!isGifticonPage && !isNetworkPage) {
-        window.location.href = '/login';
+      window.location.href = '/login';
       }
     }
     return Promise.reject(error);

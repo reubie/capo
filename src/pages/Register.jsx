@@ -137,10 +137,10 @@ const Register = () => {
 
       {/* Main Card */}
       <div className="relative z-10 w-full max-w-md laptop:max-w-lg desktop:max-w-xl">
-        <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-white/10">
+        <div className="bg-brand-cardLight rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-brand-brown/20">
           {/* Heading */}
           <div className="text-center mb-4 xs:mb-6">
-            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-white mb-2">
+            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-brand-brown mb-2">
               Create Account
             </h1>
             <p className="text-brand-textSecondary text-xs xs:text-sm sm:text-base tablet:text-lg">
@@ -151,14 +151,14 @@ const Register = () => {
           {step === 'form' && (
             <>
               {/* Mode Toggle */}
-              <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex gap-2 mb-6 p-1 bg-white rounded-lg border border-brand-brown/20">
                 <button
                   type="button"
                   onClick={() => setMode('manual')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     mode === 'manual'
-                      ? 'bg-brand-purplePrimary text-white shadow-sm'
-                      : 'text-brand-textSecondary hover:text-white'
+                      ? 'bg-brand-orange text-brand-textOnDark shadow-sm'
+                      : 'text-brand-textSecondary hover:text-brand-brown'
                   }`}
                 >
                   Manual Entry
@@ -168,8 +168,8 @@ const Register = () => {
                   onClick={() => setMode('card')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     mode === 'card'
-                      ? 'bg-brand-purplePrimary text-white shadow-sm'
-                      : 'text-brand-textSecondary hover:text-white'
+                      ? 'bg-brand-orange text-brand-textOnDark shadow-sm'
+                      : 'text-brand-textSecondary hover:text-brand-brown'
                   }`}
                 >
                   Business Card
@@ -185,7 +185,7 @@ const Register = () => {
               {mode === 'manual' ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-white font-medium mb-2 text-sm">
+                    <label className="block text-brand-brown font-medium mb-2 text-sm">
                       Full Name
                     </label>
                     <input
@@ -194,12 +194,12 @@ const Register = () => {
                       placeholder="John Doe"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2 text-sm">
+                    <label className="block text-brand-brown font-medium mb-2 text-sm">
                       Email
                     </label>
                     <input
@@ -208,12 +208,12 @@ const Register = () => {
                       placeholder="john@example.com"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-white font-medium mb-2 text-sm">
+                    <label className="block text-brand-brown font-medium mb-2 text-sm">
                       Phone Number
                     </label>
                     <input
@@ -222,14 +222,14 @@ const Register = () => {
                       placeholder="+1 234 567 8900"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
                       required
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Processing...' : 'Continue'}
                   </button>
@@ -237,7 +237,7 @@ const Register = () => {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-white font-medium mb-2 text-sm">
+                    <label className="block text-brand-brown font-medium mb-2 text-sm">
                       Business Card Image
                     </label>
                     {cardPreview ? (
@@ -245,7 +245,7 @@ const Register = () => {
                         <img
                           src={cardPreview}
                           alt="Business card preview"
-                          className="w-full h-48 object-contain rounded-lg border border-white/10"
+                          className="w-full h-48 object-contain rounded-lg border border-brand-brown/20"
                         />
                         <button
                           type="button"
@@ -256,7 +256,7 @@ const Register = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
+                      <div className="border border-dashed border-brand-brown/30 rounded-lg p-8 text-center hover:border-brand-brown/50 transition-colors bg-white">
                         <input
                           type="file"
                           accept="image/*"
@@ -268,11 +268,11 @@ const Register = () => {
                           htmlFor="card-upload"
                           className="cursor-pointer flex flex-col items-center gap-3"
                         >
-                          <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
-                            <Upload className="w-8 h-8 text-brand-purplePrimary" />
+                          <div className="p-4 bg-brand-orange/10 rounded-full">
+                            <Upload className="w-8 h-8 text-brand-orange" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-white">
+                            <p className="text-sm font-medium text-brand-brown">
                               Click to upload or take a photo
                             </p>
                             <p className="text-xs text-brand-textSecondary mt-1">
@@ -286,7 +286,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={loading || !cardImage}
-                    className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Processing...' : 'Continue'}
                   </button>
@@ -308,7 +308,7 @@ const Register = () => {
                 </div>
               )}
               <div>
-                <label className="block text-white font-medium mb-2 text-sm">
+                <label className="block text-brand-brown font-medium mb-2 text-sm">
                   Enter OTP
                 </label>
                 <input
@@ -317,14 +317,14 @@ const Register = () => {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
-                  className="w-full px-4 py-3 border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary text-center text-2xl tracking-widest"
+                  className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary text-center text-2xl tracking-widest"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Verifying...' : 'Verify & Register'}
               </button>
@@ -334,7 +334,7 @@ const Register = () => {
                   setStep('form');
                   setOtp('');
                 }}
-                className="w-full text-sm text-brand-textSecondary hover:text-white transition-colors"
+                className="w-full text-sm text-brand-textSecondary hover:text-brand-brown transition-colors"
               >
                 Back to registration
               </button>
@@ -342,12 +342,12 @@ const Register = () => {
           )}
 
           {/* Login Link */}
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-brand-brown/20">
             <p className="text-center text-sm text-brand-textSecondary mb-2">
               Already have an account?{' '}
               <button
                 onClick={() => navigate('/login')}
-                className="text-white font-semibold hover:underline"
+                className="text-brand-orange font-semibold hover:underline"
               >
                 Login
               </button>
@@ -358,7 +358,7 @@ const Register = () => {
           <div className="mt-4 text-center">
             <button
               onClick={() => navigate('/')}
-              className="text-sm text-white font-medium hover:underline"
+              className="text-sm text-brand-brown font-medium hover:underline"
             >
               Back to Home
             </button>

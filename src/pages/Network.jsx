@@ -208,30 +208,30 @@ const Network = () => {
     <div className="min-h-screen bg-brand-background text-brand-textPrimary">
       {/* Background Image with subtle overlay */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-20"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-10"
         style={{ backgroundImage: "url('/images/background-img.png')" }}
       />
       
       {/* Header */}
-      <div className="relative bg-brand-background/80 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-white/10">
+      <div className="relative bg-brand-background/95 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-brand-brown/20">
         <div className="max-w-7xl mx-auto px-2 xs:px-3 sm:px-4 tablet:px-6 laptop:px-8 desktop:px-12 py-2 xs:py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 xs:gap-3 sm:gap-4">
             <div className="flex items-center gap-2 xs:gap-3 sm:gap-4 min-w-0 flex-1">
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center gap-1 text-brand-textSecondary hover:text-white transition-colors font-medium flex-shrink-0"
+                className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
               >
                 <ArrowLeft className="w-4 h-4 xs:w-5 xs:h-5" />
                 <span className="hidden sm:inline text-xs xs:text-sm">Back</span>
               </button>
-              <div className="h-6 w-px bg-white/20 hidden xs:block"></div>
-              <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-white truncate min-w-0">
-                Show you <span className="text-yellow-400">care</span> <span className="text-brand-purplePrimary">Network</span>
+              <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
+              <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">
+                Network
               </h1>
             </div>
             <button
               onClick={() => navigate('/gifticon')}
-              className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-1 xs:gap-2 flex-shrink-0 whitespace-nowrap"
+              className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center gap-1 xs:gap-2 flex-shrink-0 whitespace-nowrap"
             >
               <Gift className="w-3 h-3 xs:w-4 xs:h-4" />
               <span className="hidden xs:inline">Gifticon</span>
@@ -243,7 +243,7 @@ const Network = () => {
       {/* Main Content */}
       <div className="relative max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 tablet:px-8 laptop:px-12 desktop:px-16 py-4 xs:py-6 tablet:py-8">
         {/* Search and Filter Bar */}
-        <div className="bg-brand-cardDark rounded-xl shadow-lg p-3 xs:p-4 mb-4 xs:mb-6 border border-white/10">
+        <div className="bg-brand-cardLight rounded-xl shadow-lg p-3 xs:p-4 mb-4 xs:mb-6 border border-brand-brown/20">
           <div className="flex flex-col gap-3 xs:gap-4">
             {/* Search Row */}
             <div className="flex-1 relative">
@@ -253,7 +253,7 @@ const Network = () => {
                 placeholder="Search by name, company, email, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2 text-sm xs:text-base border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white placeholder-brand-textSecondary"
+                className="w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2 text-sm xs:text-base border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
               />
             </div>
             {/* Filter and Action Row */}
@@ -263,7 +263,7 @@ const Network = () => {
                 <select
                   value={filterBy}
                   onChange={(e) => setFilterBy(e.target.value)}
-                  className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm border border-white/10 rounded-lg bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-purplePrimary/50 focus:border-brand-purplePrimary text-white"
+                  className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown"
                 >
                   <option value="all">All</option>
                   <option value="date">Sort by Date</option>
@@ -271,13 +271,13 @@ const Network = () => {
                   <option value="company">Sort by Company</option>
                 </select>
               </div>
-              <div className="flex items-center gap-1 xs:gap-2 border border-white/10 rounded-lg p-0.5 xs:p-1 bg-white/5 flex-shrink-0">
+              <div className="flex items-center gap-1 xs:gap-2 border border-brand-brown/20 rounded-lg p-0.5 xs:p-1 bg-white flex-shrink-0">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-1.5 xs:p-2 rounded transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-brand-purplePrimary text-white'
-                      : 'text-brand-textSecondary hover:text-white hover:bg-white/10'
+                      ? 'bg-brand-orange text-brand-textOnDark'
+                      : 'text-brand-textSecondary hover:text-brand-brown hover:bg-brand-backgroundAlt'
                   }`}
                   title="Grid View"
                 >
@@ -287,8 +287,8 @@ const Network = () => {
                   onClick={() => setViewMode('list')}
                   className={`p-1.5 xs:p-2 rounded transition-colors ${
                     viewMode === 'list'
-                      ? 'bg-brand-purplePrimary text-white'
-                      : 'text-brand-textSecondary hover:text-white hover:bg-white/10'
+                      ? 'bg-brand-orange text-brand-textOnDark'
+                      : 'text-brand-textSecondary hover:text-brand-brown hover:bg-brand-backgroundAlt'
                   }`}
                   title="List View"
                 >
@@ -297,7 +297,7 @@ const Network = () => {
               </div>
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center justify-center gap-1.5 xs:gap-2 flex-shrink-0 whitespace-nowrap"
+                className="px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-1.5 xs:gap-2 flex-shrink-0 whitespace-nowrap"
               >
                 <Plus className="w-4 h-4 xs:w-5 xs:h-5" />
                 <span className="hidden xs:inline">Add New Card</span>
@@ -310,17 +310,17 @@ const Network = () => {
         {/* Cards Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-purplePrimary"></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-orange"></div>
             <p className="mt-4 text-brand-textSecondary">Loading cards...</p>
           </div>
         ) : filteredCards.length === 0 ? (
-          <div className="bg-brand-cardDark rounded-xl shadow-lg p-12 text-center border border-white/10">
+          <div className="bg-brand-cardLight rounded-xl shadow-lg p-12 text-center border border-brand-brown/20">
             <p className="text-brand-textSecondary text-lg mb-4">
               {searchQuery ? 'No cards found matching your search' : 'No business cards yet'}
             </p>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-brand-purplePrimary text-white rounded-lg font-medium hover:bg-brand-purpleLight transition-colors flex items-center gap-2 mx-auto"
+              className="px-4 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center gap-2 mx-auto"
             >
               <Plus className="w-5 h-5 mr-2" />
               Add Your First Card
@@ -337,9 +337,9 @@ const Network = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-brand-cardDark rounded-xl shadow-lg border border-white/10 overflow-hidden">
+          <div className="bg-brand-cardLight rounded-xl shadow-lg border border-brand-brown/20 overflow-hidden">
             {/* Table Header */}
-            <div className="hidden tablet:grid tablet:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] laptop:grid-cols-[80px_1fr_1fr_1fr_1fr_1fr_140px_60px] gap-3 xs:gap-4 p-3 xs:p-4 border-b border-white/10 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
+            <div className="hidden tablet:grid tablet:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] laptop:grid-cols-[80px_1fr_1fr_1fr_1fr_1fr_140px_60px] gap-3 xs:gap-4 p-3 xs:p-4 border-b border-brand-brown/20 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
               <div></div>
               <div>Name</div>
               <div>Company</div>
@@ -349,12 +349,12 @@ const Network = () => {
               <div>Date</div>
               <div></div>
             </div>
-            <div className="divide-y divide-white/10">
+            <div className="divide-y divide-brand-brown/20">
               {filteredCards.map((card) => (
                 <div
                   key={card.id}
                   onClick={() => setSelectedCard(card)}
-                  className="grid grid-cols-[60px_1fr] tablet:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] laptop:grid-cols-[80px_1fr_1fr_1fr_1fr_1fr_140px_60px] gap-3 xs:gap-4 p-3 xs:p-4 hover:bg-white/5 cursor-pointer transition-colors group items-center"
+                  className="grid grid-cols-[60px_1fr] tablet:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] laptop:grid-cols-[80px_1fr_1fr_1fr_1fr_1fr_140px_60px] gap-3 xs:gap-4 p-3 xs:p-4 hover:bg-brand-backgroundAlt cursor-pointer transition-colors group items-center"
                 >
                   {/* Thumbnail */}
                   <div className="flex-shrink-0">
@@ -362,13 +362,13 @@ const Network = () => {
                       <img
                         src={card.image}
                         alt={card.name}
-                        className="w-12 h-12 rounded object-cover border border-white/10"
+                        className="w-12 h-12 rounded object-cover border border-brand-brown/20"
                         onError={(e) => {
-                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23111113" width="48" height="48"/%3E%3C/svg%3E';
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23FFFCED" width="48" height="48"/%3E%3C/svg%3E';
                         }}
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded bg-white/5 border border-white/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded bg-white border border-brand-brown/20 flex items-center justify-center">
                         <Building2 className="w-6 h-6 text-brand-textSecondary" />
                       </div>
                     )}
@@ -377,7 +377,7 @@ const Network = () => {
                   {/* Name */}
                   <div className="min-w-0">
                     <div className="md:hidden text-xs text-brand-textSecondary mb-1">Name</div>
-                    <div className="font-semibold text-white truncate">
+                    <div className="font-semibold text-brand-brown truncate">
                       {card.name || 'Unknown'}
                     </div>
                   </div>
@@ -433,7 +433,7 @@ const Network = () => {
                   </div>
                   
                   {/* Mobile: Additional Details */}
-                  <div className="tablet:hidden col-span-2 space-y-1 mt-2 pt-2 border-t border-white/10">
+                  <div className="tablet:hidden col-span-2 space-y-1 mt-2 pt-2 border-t border-brand-brown/20">
                     {card.company && (
                       <div className="flex items-center gap-2 text-sm text-brand-textSecondary">
                         <Building2 className="w-4 h-4 flex-shrink-0" />
@@ -475,25 +475,25 @@ const Network = () => {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 xs:p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl p-4 xs:p-6 sm:p-8 max-w-md w-full relative shadow-2xl border border-white/10 my-4">
+          <div className="bg-brand-cardLight rounded-xl xs:rounded-2xl p-4 xs:p-6 sm:p-8 max-w-md w-full relative shadow-2xl border border-brand-brown/20 my-4">
             <button
               onClick={() => {
                 setShowUploadModal(false);
                 setCardImage(null);
                 setCardPreview(null);
               }}
-              className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-white transition-colors z-10"
+              className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-brand-brown transition-colors z-10"
             >
               <X className="w-5 h-5 xs:w-6 xs:h-6" />
             </button>
-            <h2 className="text-lg xs:text-xl sm:text-2xl font-bold text-white mb-4 xs:mb-6 pr-8 xs:pr-10">Add Business Card</h2>
+            <h2 className="text-lg xs:text-xl sm:text-2xl font-bold text-brand-brown mb-4 xs:mb-6 pr-8 xs:pr-10">Add Business Card</h2>
             {cardPreview ? (
               <div className="space-y-4">
                 <div className="relative">
                   <img
                     src={cardPreview}
                     alt="Business card preview"
-                    className="w-full h-64 object-contain rounded-lg border border-white/10"
+                    className="w-full h-64 object-contain rounded-lg border border-brand-brown/20"
                   />
                   <button
                     onClick={() => {
@@ -508,14 +508,14 @@ const Network = () => {
                 <button
                   onClick={handleAddCard}
                   disabled={uploading}
-                  className="w-full py-3 bg-brand-purplePrimary text-white font-bold rounded-lg hover:bg-brand-purpleLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploading ? 'Processing...' : 'Add Card'}
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="border border-dashed border-white/20 rounded-lg p-8 text-center hover:border-white/40 transition-colors">
+                <div className="border border-dashed border-brand-brown/30 rounded-lg p-8 text-center hover:border-brand-brown/50 transition-colors bg-white">
                   <input
                     type="file"
                     accept="image/*"
@@ -527,11 +527,11 @@ const Network = () => {
                     htmlFor="card-upload-modal"
                     className="cursor-pointer flex flex-col items-center gap-3"
                   >
-                    <div className="p-4 bg-brand-purplePrimary/10 rounded-full">
-                      <Upload className="w-8 h-8 text-brand-purplePrimary" />
+                    <div className="p-4 bg-brand-orange/10 rounded-full">
+                      <Upload className="w-8 h-8 text-brand-orange" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">
+                      <p className="text-sm font-medium text-brand-brown">
                         Click to upload or take a photo
                       </p>
                       <p className="text-xs text-brand-textSecondary mt-1">
@@ -549,10 +549,10 @@ const Network = () => {
       {/* Card Preview Modal (for list view) */}
       {selectedCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 xs:p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-brand-cardDark rounded-xl xs:rounded-2xl p-4 xs:p-6 sm:p-8 tablet:p-8 laptop:p-10 max-w-4xl w-full relative shadow-2xl border border-white/10 my-4 max-h-[95vh] overflow-y-auto">
+          <div className="bg-brand-cardLight rounded-xl xs:rounded-2xl p-4 xs:p-6 sm:p-8 tablet:p-8 laptop:p-10 max-w-4xl w-full relative shadow-2xl border border-brand-brown/20 my-4 max-h-[95vh] overflow-y-auto">
             <button
               onClick={() => setSelectedCard(null)}
-              className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-white transition-colors z-10"
+              className="absolute top-3 xs:top-4 right-3 xs:right-4 text-brand-textSecondary hover:text-brand-brown transition-colors z-10"
             >
               <X className="w-5 h-5 xs:w-6 xs:h-6" />
             </button>
@@ -563,16 +563,16 @@ const Network = () => {
                   <img
                     src={selectedCard.image}
                     alt={`${selectedCard.name}'s business card`}
-                    className="w-full h-auto rounded-lg border border-white/10 shadow-lg object-contain bg-white/5"
+                    className="w-full h-auto rounded-lg border border-brand-brown/20 shadow-lg object-contain bg-white"
                     onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="200"%3E%3Crect fill="%23111113" width="320" height="200"/%3E%3C/svg%3E';
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="200"%3E%3Crect fill="%23FFFCED" width="320" height="200"/%3E%3C/svg%3E';
                     }}
                   />
                 </div>
               )}
               {/* Details */}
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl xs:text-2xl sm:text-3xl tablet:text-3xl laptop:text-4xl font-bold text-white mb-4 xs:mb-6">
+                <h2 className="text-xl xs:text-2xl sm:text-3xl tablet:text-3xl laptop:text-4xl font-bold text-brand-brown mb-4 xs:mb-6">
                   {selectedCard.name || 'Unknown'}
                 </h2>
                 <div className="space-y-4">
@@ -581,7 +581,7 @@ const Network = () => {
                       <Building2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Company</div>
-                        <div className="text-white">{selectedCard.company}</div>
+                        <div className="text-brand-brown">{selectedCard.company}</div>
                       </div>
                     </div>
                   )}
@@ -590,7 +590,7 @@ const Network = () => {
                       <Phone className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Phone</div>
-                        <div className="text-white">{selectedCard.phone}</div>
+                        <div className="text-brand-brown">{selectedCard.phone}</div>
                       </div>
                     </div>
                   )}
@@ -599,7 +599,7 @@ const Network = () => {
                       <Mail className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Email Address</div>
-                        <div className="text-white break-all">{selectedCard.email}</div>
+                        <div className="text-brand-brown break-all">{selectedCard.email}</div>
                       </div>
                     </div>
                   )}
@@ -608,7 +608,7 @@ const Network = () => {
                       <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Physical Address</div>
-                        <div className="text-white">{selectedCard.address}</div>
+                        <div className="text-brand-brown">{selectedCard.address}</div>
                       </div>
                     </div>
                   )}
@@ -617,7 +617,7 @@ const Network = () => {
                       <Calendar className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs uppercase tracking-wider text-brand-textSecondary/70 mb-1">Date Added</div>
-                        <div className="text-white">{new Date(selectedCard.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                        <div className="text-brand-brown">{new Date(selectedCard.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                       </div>
                     </div>
                   )}
@@ -627,7 +627,7 @@ const Network = () => {
                     handleDeleteCard(selectedCard.id);
                     setSelectedCard(null);
                   }}
-                  className="mt-6 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
+                  className="mt-6 px-4 py-2 bg-red-500/20 text-red-600 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
                 >
                   Delete Card
                 </button>
