@@ -3,14 +3,12 @@ import { Navigate } from 'react-router-dom';
 import { isAuthenticated } from '../utils/auth';
 
 /**
- * PublicRoute - Guards public routes (login/register)
- * Redirects to /gifticon if user is already authenticated
+ * PublicRoute
+ * Prevents logged-in users from accessing login/register pages.
+ * Redirects authenticated users to default private page (/gifticon)
  */
 const PublicRoute = ({ children }) => {
-  const authenticated = isAuthenticated();
-
-  if (authenticated) {
-    // Redirect to gifticon page if already logged in
+  if (isAuthenticated()) {
     return <Navigate to="/gifticon" replace />;
   }
 
@@ -18,4 +16,3 @@ const PublicRoute = ({ children }) => {
 };
 
 export default PublicRoute;
-

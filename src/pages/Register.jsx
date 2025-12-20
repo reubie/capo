@@ -1,368 +1,295 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { authAPI } from '../utils/api';
-import { validateEmail, validatePhone } from '../utils/helpers';
+import {
+  validateEmail,
+  validatePassword,
+  getPasswordStrength,
+  validateName,
+  cn,
+} from '../utils/helpers';
 
 const Register = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState('manual'); // 'manual' or 'card'
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
+    password: '',
+    role: '',
   });
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('form'); // 'form' or 'otp'
-  const [cardImage, setCardImage] = useState(null);
-  const [cardPreview, setCardPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [passwordStrength, setPasswordStrength] = useState('');
+  const [showPasswordChecklist, setShowPasswordChecklist] = useState(false);
 
   useEffect(() => {
     document.title = 'Show you care - Register';
   }, []);
 
+  /* =========================
+     INPUT HANDLING
+  ========================= */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
-  const handleCardUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size should be less than 5MB');
-        return;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'name') {
+      setFieldErrors((prev) => ({
+        ...prev,
+        name: validateName(value)
+          ? ''
+          : 'Name should contain only letters and spaces',
+      }));
+    }
+
+    if (name === 'email') {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: validateEmail(value) ? '' : 'Invalid email address',
+      }));
+    }
+
+    if (name === 'password') {
+      if (!showPasswordChecklist && value.length > 0) {
+        setShowPasswordChecklist(true);
       }
-      setCardImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCardPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+
+      const { isValid } = validatePassword(value);
+
+      setFieldErrors((prev) => ({
+        ...prev,
+        password: isValid ? '' : 'Password does not meet all requirements',
+      }));
+
+      setPasswordStrength(getPasswordStrength(value));
+
+      if (value.length === 0) {
+        setShowPasswordChecklist(false);
+      }
     }
   };
 
-  const handleRemoveCard = () => {
-    setCardImage(null);
-    setCardPreview(null);
+  const handleRoleSelect = (role) => {
+    setFormData((prev) => ({ ...prev, role }));
   };
 
+  /* =========================
+     SUBMIT
+  ========================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
-    if (mode === 'manual') {
-      if (!formData.name || !formData.email || !formData.phone) {
-        setError('Please fill in all fields');
-        return;
-      }
-      if (!validateEmail(formData.email)) {
-        setError('Please enter a valid email address');
-        return;
-      }
-      if (!validatePhone(formData.phone)) {
-        setError('Please enter a valid phone number');
-        return;
-      }
-    } else {
-      if (!cardImage) {
-        setError('Please upload a business card image');
-        return;
-      }
-    }
-
-    setLoading(true);
-    try {
-      if (mode === 'manual') {
-        // TODO: Replace with actual API call
-        // await authAPI.register(formData);
-        console.log('Registering with:', formData);
-      } else {
-        const formDataToSend = new FormData();
-        formDataToSend.append('card', cardImage);
-        // TODO: Replace with actual API call
-        // await authAPI.uploadBusinessCard(formDataToSend);
-        console.log('Registering with business card');
-      }
-
-      // Simulate API call
-      setTimeout(() => {
-        setStep('otp');
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
+    if (!formData.role) {
+      toast.error('Please select an account type');
       return;
     }
 
-    setLoading(true);
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.toLowerCase().trim(),
+      password: formData.password,
+      role: formData.role.toUpperCase(),
+    };
+
+    console.group('📝 REGISTER REQUEST');
+    console.log('Payload →', payload);
+    console.groupEnd();
+
     try {
-      // TODO: Replace with actual API call
-      // const response = await authAPI.register({ ...formData, otp });
-      // localStorage.setItem('token', response.data.token);
-      
-      console.log('Verifying OTP:', otp);
-      
-      // Simulate API call
+      // ✅ Using global wrapper via meta
+      const response = await authAPI.signup(payload, {
+        meta: { loadingText: 'Creating your account...' },
+      });
+
+      console.group('✅ REGISTER SUCCESS');
+      console.log('HTTP status →', response.status);
+      console.log('Backend response →', response.data);
+      console.groupEnd();
+
+      toast.success('Account created successfully 🎉');
+
       setTimeout(() => {
-        setLoading(false);
-        navigate('/gifticon');
-      }, 1000);
+        navigate('/login');
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
-      setLoading(false);
+      const res = err?.response;
+
+      console.group('❌ REGISTER FAILURE');
+      console.log('HTTP status →', res?.status || 'NO_RESPONSE');
+      console.log('Backend payload →', res?.data || null);
+      console.log('Axios error →', err.message);
+      console.groupEnd();
+
+      if (!res) {
+        toast.error('Network error. Please check your connection.');
+      } else {
+        const backendCode = res.data?.code;
+
+        switch (backendCode) {
+          case '400001':
+            toast.error('Please fill in all required fields correctly.');
+            break;
+          case '400003':
+            toast.error('This email is already registered.');
+            break;
+          default:
+            toast.error(res.data?.message || 'Registration failed.');
+        }
+      }
     }
   };
 
+  /* =========================
+     PASSWORD CHECKLIST
+  ========================= */
+  const renderPasswordChecklist = () => {
+    if (!showPasswordChecklist) return null;
+
+    const { rules } = validatePassword(formData.password);
+    const unmetRules = Object.entries(rules)
+      .filter(([_, passed]) => !passed)
+      .map(([rule]) => rule);
+
+    if (unmetRules.length === 0) return null;
+
+    return (
+      <ul className="text-sm mt-1">
+        {unmetRules.includes('length') && (
+          <li className="text-red-500">At least 8 characters</li>
+        )}
+        {unmetRules.includes('uppercase') && (
+          <li className="text-red-500">At least 1 uppercase letter</li>
+        )}
+        {unmetRules.includes('lowercase') && (
+          <li className="text-red-500">At least 1 lowercase letter</li>
+        )}
+        {unmetRules.includes('number') && (
+          <li className="text-red-500">At least 1 number</li>
+        )}
+        {unmetRules.includes('specialChar') && (
+          <li className="text-red-500">At least 1 special character</li>
+        )}
+      </ul>
+    );
+  };
+
+  /* =========================
+     UI
+  ========================= */
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-3 xs:p-4 tablet:p-6 laptop:p-8">
-      {/* Background Image with Blur */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/images/background-img.png')" }}
-      />
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-brand-cardLight rounded-2xl shadow-2xl p-6 border border-brand-brown/20">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-brand-brown">
+            Create Account
+          </h1>
+          <p className="text-brand-textSecondary">
+            Join Show you care today
+          </p>
+        </div>
 
-      {/* Main Card */}
-      <div className="relative z-10 w-full max-w-md laptop:max-w-lg desktop:max-w-xl">
-        <div className="bg-brand-cardLight rounded-xl xs:rounded-2xl shadow-2xl p-5 xs:p-6 sm:p-8 tablet:p-10 laptop:p-12 border border-brand-brown/20">
-          {/* Heading */}
-          <div className="text-center mb-4 xs:mb-6">
-            <h1 className="text-2xl xs:text-3xl sm:text-3xl tablet:text-4xl laptop:text-5xl desktop:text-6xl font-bold text-brand-brown mb-2">
-              Create Account
-            </h1>
-            <p className="text-brand-textSecondary text-xs xs:text-sm sm:text-base tablet:text-lg">
-              Join Show you care today
-            </p>
-          </div>
-
-          {step === 'form' && (
-            <>
-              {/* Mode Toggle */}
-              <div className="flex gap-2 mb-6 p-1 bg-white rounded-lg border border-brand-brown/20">
-                <button
-                  type="button"
-                  onClick={() => setMode('manual')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                    mode === 'manual'
-                      ? 'bg-brand-orange text-brand-textOnDark shadow-sm'
-                      : 'text-brand-textSecondary hover:text-brand-brown'
-                  }`}
-                >
-                  Manual Entry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('card')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                    mode === 'card'
-                      ? 'bg-brand-orange text-brand-textOnDark shadow-sm'
-                      : 'text-brand-textSecondary hover:text-brand-brown'
-                  }`}
-                >
-                  Business Card
-                </button>
-              </div>
-
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                  {error}
-                </div>
-              )}
-
-              {mode === 'manual' ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-brand-brown font-medium mb-2 text-sm">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="John Doe"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-brand-brown font-medium mb-2 text-sm">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="john@example.com"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-brand-brown font-medium mb-2 text-sm">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="+1 234 567 8900"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Processing...' : 'Continue'}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-brand-brown font-medium mb-2 text-sm">
-                      Business Card Image
-                    </label>
-                    {cardPreview ? (
-                      <div className="relative">
-                        <img
-                          src={cardPreview}
-                          alt="Business card preview"
-                          className="w-full h-48 object-contain rounded-lg border border-brand-brown/20"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleRemoveCard}
-                          className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="border border-dashed border-brand-brown/30 rounded-lg p-8 text-center hover:border-brand-brown/50 transition-colors bg-white">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleCardUpload}
-                          className="hidden"
-                          id="card-upload"
-                        />
-                        <label
-                          htmlFor="card-upload"
-                          className="cursor-pointer flex flex-col items-center gap-3"
-                        >
-                          <div className="p-4 bg-brand-orange/10 rounded-full">
-                            <Upload className="w-8 h-8 text-brand-orange" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-brand-brown">
-                              Click to upload or take a photo
-                            </p>
-                            <p className="text-xs text-brand-textSecondary mt-1">
-                              PNG, JPG up to 5MB
-                            </p>
-                          </div>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !cardImage}
-                    className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Processing...' : 'Continue'}
-                  </button>
-                </form>
-              )}
-            </>
-          )}
-
-          {step === 'otp' && (
-            <form onSubmit={handleVerifyOTP} className="space-y-6">
-              <div className="text-center mb-4">
-                <p className="text-brand-textSecondary text-sm">
-                  We've sent a verification code to your phone
-                </p>
-              </div>
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                  {error}
-                </div>
-              )}
-              <div>
-                <label className="block text-brand-brown font-medium mb-2 text-sm">
-                  Enter OTP
-                </label>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  className="w-full px-4 py-3 border border-brand-brown/20 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange text-brand-brown placeholder-brand-textSecondary text-center text-2xl tracking-widest"
-                  required
-                />
-              </div>
+        {/* ROLE SELECTION */}
+        <div className="mb-4">
+          <label className="block text-brand-brown font-medium mb-2 text-sm">
+            Account Type
+          </label>
+          <div className="flex gap-2">
+            {['user', 'vendor', 'admin'].map((role) => (
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Verifying...' : 'Verify & Register'}
-              </button>
-              <button
+                key={role}
                 type="button"
-                onClick={() => {
-                  setStep('form');
-                  setOtp('');
-                }}
-                className="w-full text-sm text-brand-textSecondary hover:text-brand-brown transition-colors"
+                onClick={() => handleRoleSelect(role)}
+                className={cn(
+                  'flex-1 py-2 rounded-lg border text-sm font-medium',
+                  formData.role === role
+                    ? 'bg-brand-orange text-white border-brand-orange'
+                    : 'bg-white text-brand-brown border-brand-brown/20'
+                )}
               >
-                Back to registration
+                {role.charAt(0).toUpperCase() + role.slice(1)}
               </button>
-            </form>
-          )}
+            ))}
+          </div>
+        </div>
 
-          {/* Login Link */}
-          <div className="mt-6 pt-6 border-t border-brand-brown/20">
-            <p className="text-center text-sm text-brand-textSecondary mb-2">
-              Already have an account?{' '}
-              <button
-                onClick={() => navigate('/login')}
-                className="text-brand-orange font-semibold hover:underline"
-              >
-                Login
-              </button>
-            </p>
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              name="name"
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border rounded-lg"
+            />
+            {fieldErrors.name && (
+              <p className="text-red-500 text-sm mt-1">
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
 
-          {/* Back to Home Link */}
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => navigate('/')}
-              className="text-sm text-brand-brown font-medium hover:underline"
-            >
-              Back to Home
-            </button>
+          <div>
+            <input
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border rounded-lg"
+            />
+            {fieldErrors.email && (
+              <p className="text-red-500 text-sm mt-1">
+                {fieldErrors.email}
+              </p>
+            )}
           </div>
+
+          <div>
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border rounded-lg"
+            />
+
+            {renderPasswordChecklist()}
+
+            {formData.password && (
+              <p
+                className={`text-sm mt-1 ${
+                  passwordStrength === 'Weak'
+                    ? 'text-red-500'
+                    : passwordStrength === 'Medium'
+                    ? 'text-yellow-500'
+                    : 'text-green-600'
+                }`}
+              >
+                Password strength: {passwordStrength}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3 bg-brand-orange text-white rounded-lg"
+          >
+            Create Account
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm">
+          Already have an account?{' '}
+          <button
+            onClick={() => navigate('/login')}
+            className="text-brand-orange font-semibold"
+          >
+            Login
+          </button>
         </div>
       </div>
     </div>

@@ -1,71 +1,147 @@
 import axios from 'axios';
 import { getToken, removeToken } from './auth';
 
-// Default to Spring Boot backend port (usually 8080)
-// Note: Remove /api if your backend doesn't use it as a prefix
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+/* =========================
+   GLOBAL LOADING HANDLER
+========================= */
+let loadingHandler = null;
+
+export const registerLoadingHandler = (handler) => {
+  loadingHandler = handler;
+};
+
+/* =========================
+   BASE CONFIG
+========================= */
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://3.27.128.227:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
 });
 
-// Request interceptor for adding auth tokens
+/* =========================
+   REQUEST INTERCEPTOR
+========================= */
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    if (loadingHandler && config.meta?.loadingText) {
+      loadingHandler.showLoading(config.meta.loadingText);
+    }
+
     return config;
   },
   (error) => {
+    loadingHandler?.hideLoading();
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for handling errors
+/* =========================
+   RESPONSE INTERCEPTOR
+   403 = SESSION DEAD
+========================= */
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    loadingHandler?.hideLoading();
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - remove token and redirect to login
-      // Skip redirect if on gifticon or network page (allows UI testing without auth)
-      const isGifticonPage = window.location.pathname === '/gifticon';
-      const isNetworkPage = window.location.pathname === '/network';
+    loadingHandler?.hideLoading();
+
+    if (error.response?.status === 403) {
+      // 🔐 Kill session completely
       removeToken();
-      if (!isGifticonPage && !isNetworkPage) {
+
+      // 🔁 Hard redirect ensures clean state
       window.location.href = '/login';
-      }
     }
+
     return Promise.reject(error);
   }
 );
+
+/* =========================
+   AUTH APIs
+========================= */
+export const authAPI = {
+  signup: (data) =>
+    api.post('/api/user/signup', data, {
+      meta: { loadingText: 'Creating your account...' },
+    }),
+
+  login: (data) =>
+    api.post('/api/user/login', data, {
+      meta: { loadingText: 'Signing you in...' },
+    }),
+
+  verifyOtp: (data) =>
+    api.post('/api/user/verify-otp', data, {
+      meta: { loadingText: 'Verifying OTP...' },
+    }),
+};
+
+/* =========================
+   BUSINESS CARD APIs
+========================= */
+export const cardAPI = {
+  registerBusinessCard: (data) =>
+    api.post('/api/card/register', data, {
+      meta: { loadingText: 'Registering business card...' },
+    }),
+
+  getCards: () =>
+    api.get('/api/card/list', {
+      meta: { loadingText: 'Fetching cards...' },
+    }),
+};
+
+/* =========================
+   GIFTICON APIs
+========================= */
+export const gifticonAPI = {
+  getAvailableGifts: () =>
+    api.get('/api/gift/list', {
+      meta: { loadingText: 'Loading gifts...' },
+    }),
+
+  purchaseGift: (giftTemplateId) =>
+    api.post(
+      '/api/gift/buy',
+      { giftTemplateId },
+      { meta: { loadingText: 'Processing purchase...' } }
+    ),
+
+  sendGift: (data) =>
+    api.post('/api/gift/send', data, {
+      meta: { loadingText: 'Sending gift...' },
+    }),
+
+  getPurchasedGifts: () =>
+    api.get('/api/gift/my-list', {
+      meta: { loadingText: 'Loading your purchased gifts...' },
+    }),
+
+  getPurchaseHistory: () =>
+    api.get('/api/gifticon/history', {
+      meta: { loadingText: 'Loading purchase history...' },
+    }),
+};
+
+/* =========================
+   NETWORK APIs
+========================= */
+export const networkAPI = {
+  getCards: () => cardAPI.getCards(),
+  addCard: (cardData) => cardAPI.registerBusinessCard(cardData),
+};
 
 export default api;
-
-// API functions (ready for backend integration)
-export const authAPI = {
-  // Signup endpoint matching backend: POST /user/signup
-  signup: (data) => api.post('/user/signup', data), // { email, password, name }
-  // Login endpoint matching backend: POST /user/login
-  login: (data) => api.post('/user/login', data), // { email, password }
-  register: (data) => api.post('/auth/register', data),
-  sendOTP: (phone) => api.post('/auth/send-otp', { phone }),
-  uploadBusinessCard: (formData) => api.post('/auth/register-with-card', formData),
-};
-
-export const gifticonAPI = {
-  getProducts: () => api.get('/gifticon/products'),
-  purchase: (productId) => api.post('/gifticon/purchase', { productId }),
-  getPurchaseHistory: () => api.get('/gifticon/history'),
-};
-
-export const networkAPI = {
-  getCards: (params) => api.get('/network/cards', { params }),
-  addCard: (formData) => api.post('/network/cards', formData),
-  deleteCard: (cardId) => api.delete(`/network/cards/${cardId}`),
-};
-

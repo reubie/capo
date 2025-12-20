@@ -3,17 +3,16 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { isAuthenticated } from '../utils/auth';
 
 /**
- * ProtectedRoute - Guards routes that require authentication
- * Redirects to /login if user is not authenticated
- * Optionally saves the intended destination for redirect after login
+ * ProtectedRoute
+ * Guards private routes that require authentication.
+ * If the user is not logged in, redirects to /login
+ * and preserves the intended destination in location.state.from
  */
 const ProtectedRoute = ({ children }) => {
   const location = useLocation();
-  const authenticated = isAuthenticated();
 
-  if (!authenticated) {
-    // Redirect to login page, saving the intended destination
-    // You can use this later to redirect back after login
+  // Check if user has a valid token
+  if (!isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -21,4 +20,3 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
-
