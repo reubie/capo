@@ -1,57 +1,57 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, CreditCard, Wallet } from 'lucide-react';
-import { Listbox } from '@headlessui/react';
 import ProductCard from './ProductCard';
 import { gifticonAPI } from '../utils/api';
 import { generateQRCode } from '../utils/helpers';
+import { logout } from '../utils/auth';
 
 const AvailableGiftsTab = () => {
-  /* =========================
-     State
-  ========================= */
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  /* =========================
+     Filters (UI)
+  ========================= */
   const [titleOptions, setTitleOptions] = useState([]);
   const [descOptions, setDescOptions] = useState([]);
-
   const [titleFilter, setTitleFilter] = useState('all');
   const [descFilter, setDescFilter] = useState('all');
   const [priceFilter, setPriceFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  // Purchase & share
+  /* =========================
+     Purchase Flow State
+  ========================= */
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
+
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
   const [isPaying, setIsPaying] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [qrCode, setQrCode] = useState(null);
 
   /* =========================
      Load Gifts
   ========================= */
   useEffect(() => {
-    fetchAvailableGifts();
+    loadAvailableGifts();
   }, []);
 
-  const fetchAvailableGifts = async () => {
+  const loadAvailableGifts = async () => {
     setLoading(true);
     setError('');
-
     try {
       const res = await gifticonAPI.getAvailableGifts();
-
       if (res.data?.code === '200' && Array.isArray(res.data.data)) {
         const gifts = res.data.data.map(g => ({
           id: g.giftTemplateId,
           name: g.title || 'No Title',
           description: g.description || 'No Description',
           price: Number(g.price) || 0,
-          image: '',
+          image: g.image || '',
         }));
-
         setProducts(gifts);
         setTitleOptions([...new Set(gifts.map(g => g.name))].sort());
         setDescOptions([...new Set(gifts.map(g => g.description))].sort());
@@ -61,9 +61,13 @@ const AvailableGiftsTab = () => {
         setDescOptions([]);
       }
     } catch (err) {
-      if (err.response?.status !== 403) {
-        console.error('Failed to load gifts:', err);
-        setError('Failed to load gifts. Please try again later.');
+      const msg =
+        err.response?.status === 403
+          ? 'Session expired. Please log in again.'
+          : 'Failed to load gifts. Please try again later.';
+      setError(msg);
+      if (err.response?.status === 403) {
+        setTimeout(() => logout(), 1500);
       }
     } finally {
       setLoading(false);
@@ -71,33 +75,27 @@ const AvailableGiftsTab = () => {
   };
 
   /* =========================
-     Filtering
+     Filtering Logic
   ========================= */
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesTitle =
-        titleFilter === 'all' || p.name === titleFilter;
-
-      const matchesDesc =
-        descFilter === 'all' || p.description === descFilter;
-
+      const matchesTitle = titleFilter === 'all' || p.name === titleFilter;
+      const matchesDesc = descFilter === 'all' || p.description === descFilter;
       const matchesPrice =
         priceFilter === 'all' ||
         (priceFilter === '<20' && p.price < 20) ||
         (priceFilter === '20-50' && p.price >= 20 && p.price <= 50) ||
         (priceFilter === '>50' && p.price > 50);
-
       const matchesSearch =
         !search ||
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.description.toLowerCase().includes(search.toLowerCase());
-
       return matchesTitle && matchesDesc && matchesPrice && matchesSearch;
     });
   }, [products, titleFilter, descFilter, priceFilter, search]);
 
   /* =========================
-     Purchase Flow (Mock)
+     Purchase Flow
   ========================= */
   const startPurchase = product => {
     setSelectedProduct(product);
@@ -105,40 +103,35 @@ const AvailableGiftsTab = () => {
     setShowPaymentModal(true);
   };
 
-  const confirmPayment = () => {
-    if (!paymentMethod || !selectedProduct) return;
+  const proceedToReceipt = () => {
+    if (!paymentMethod) return;
+    setShowPaymentModal(false);
+    setShowReceiptModal(true);
+  };
+
+  const confirmPurchase = async () => {
+    if (!selectedProduct || !paymentMethod) return;
 
     setIsPaying(true);
+    try {
+      await gifticonAPI.purchaseGift(selectedProduct.id);
 
-    setTimeout(() => {
+      if (paymentMethod === 'paynow') {
+        const qr = generateQRCode(`PAYNOW-${selectedProduct.id}-${Date.now()}`);
+        setQrCode(qr);
+      }
+
+      setShowReceiptModal(false);
+      setSelectedProduct(null);
+      setPaymentMethod(null);
+      setQrCode(null);
+
+      alert('Purchase successful!');
+    } catch {
+      alert('Payment failed. Please try again.');
+    } finally {
       setIsPaying(false);
-      setShowPaymentModal(false);
-
-      const qr = generateQRCode(`ORDER-${selectedProduct.id}-${Date.now()}`);
-      setQrCode(qr);
-      setShowShareModal(true);
-    }, 1200);
-  };
-
-  const closeShareModal = () => {
-    setShowShareModal(false);
-    setSelectedProduct(null);
-    setQrCode(null);
-  };
-
-  /* =========================
-     Share Actions
-  ========================= */
-  const shareToWhatsApp = () => {
-    if (!selectedProduct) return;
-    const msg = `I just purchased ${selectedProduct.name} via Show you care!`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
-  const shareViaSMS = () => {
-    if (!selectedProduct) return;
-    const msg = `I just purchased ${selectedProduct.name} via Show you care!`;
-    window.location.href = `sms:&body=${encodeURIComponent(msg)}`;
+    }
   };
 
   /* =========================
@@ -146,142 +139,173 @@ const AvailableGiftsTab = () => {
   ========================= */
   return (
     <>
-      {/* Filters */}
-      <div className="bg-brand-cardLight border border-brand-brown/20 rounded-xl p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shadow-sm">
-        {/* Title Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-brand-textSecondary mb-1">Title</label>
-          <Listbox value={titleFilter} onChange={setTitleFilter}>
-            <div className="relative">
-              <Listbox.Button className="border border-brand-brown/30 rounded-lg px-3 py-2 w-full text-left text-sm text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50">
-                {titleFilter === 'all' ? 'All Titles' : titleFilter}
-              </Listbox.Button>
-              <Listbox.Options className="absolute mt-1 w-full bg-white border border-brand-brown/30 rounded-lg shadow-lg z-50 max-h-60 overflow-auto text-sm">
-                <Listbox.Option key="all" value="all" className="cursor-pointer px-3 py-2 hover:bg-brand-orange/10">
-                  All Titles
-                </Listbox.Option>
-                {titleOptions.map(t => (
-                  <Listbox.Option key={t} value={t} className="cursor-pointer px-3 py-2 hover:bg-brand-orange/10">
-                    {t}
-                  </Listbox.Option>
-                ))}
-              </Listbox.Options>
-            </div>
-          </Listbox>
+      {/* FILTERS */}
+      <div className="bg-brand-cardLight border border-brand-brown/20 rounded-xl p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 tablet:grid-cols-4 gap-4 shadow-sm">
+        <div>
+          <label className="block text-sm text-brand-textPrimary mb-1">Title</label>
+          <input
+            list="titles"
+            value={titleFilter === 'all' ? '' : titleFilter}
+            onChange={e => setTitleFilter(e.target.value || 'all')}
+            placeholder="Filter by title..."
+            className="w-full px-3 py-2 rounded-lg bg-white border border-brand-brown/20 text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50"
+          />
+          <datalist id="titles">
+            {titleOptions.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
 
-        {/* Description Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-brand-textSecondary mb-1">Description</label>
-          <Listbox value={descFilter} onChange={setDescFilter}>
-            <div className="relative">
-              <Listbox.Button className="border border-brand-brown/30 rounded-lg px-3 py-2 w-full text-left text-sm text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50">
-                {descFilter === 'all' ? 'All Descriptions' : descFilter}
-              </Listbox.Button>
-              <Listbox.Options className="absolute mt-1 w-full bg-white border border-brand-brown/30 rounded-lg shadow-lg z-50 max-h-60 overflow-auto text-sm">
-                <Listbox.Option key="all" value="all" className="cursor-pointer px-3 py-2 hover:bg-brand-orange/10">
-                  All Descriptions
-                </Listbox.Option>
-                {descOptions.map(d => (
-                  <Listbox.Option key={d} value={d} className="cursor-pointer px-3 py-2 hover:bg-brand-orange/10">
-                    {d}
-                  </Listbox.Option>
-                ))}
-              </Listbox.Options>
-            </div>
-          </Listbox>
+        <div>
+          <label className="block text-sm text-brand-textPrimary mb-1">Description</label>
+          <input
+            list="descriptions"
+            value={descFilter === 'all' ? '' : descFilter}
+            onChange={e => setDescFilter(e.target.value || 'all')}
+            placeholder="Filter by description..."
+            className="w-full px-3 py-2 rounded-lg bg-white border border-brand-brown/20 text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50"
+          />
+          <datalist id="descriptions">
+            {descOptions.map(d => <option key={d} value={d} />)}
+          </datalist>
         </div>
 
-        {/* Price Filter */}
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-brand-textSecondary mb-1">Price</label>
+        <div>
+          <label className="block text-sm text-brand-textPrimary mb-1">Price</label>
           <select
             value={priceFilter}
             onChange={e => setPriceFilter(e.target.value)}
-            className="border border-brand-brown/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-sm text-brand-brown"
+            className="w-full px-3 py-2 rounded-lg bg-white border border-brand-brown/20 text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50"
           >
-            <option value="all">All Prices</option>
+            <option value="all">All</option>
             <option value="<20">Below S$20</option>
             <option value="20-50">S$20 - S$50</option>
             <option value=">50">Above S$50</option>
           </select>
         </div>
 
-        {/* Search */}
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-brand-textSecondary mb-1">Search</label>
+        <div>
+          <label className="block text-sm text-brand-textPrimary mb-1">Search</label>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or description..."
-            className="border border-brand-brown/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-sm text-brand-brown"
+            placeholder="Search products..."
+            className="w-full px-3 py-2 rounded-lg bg-white border border-brand-brown/20 text-brand-brown focus:outline-none focus:ring-2 focus:ring-brand-orange/50"
           />
         </div>
       </div>
 
-      {/* Content */}
+      {/* PRODUCT LIST */}
       {loading ? (
-        <div className="text-center py-12">Loading products…</div>
+        <div className="text-center py-12">Loading products...</div>
       ) : error ? (
         <p className="text-center text-red-500 py-12">{error}</p>
       ) : filteredProducts.length === 0 ? (
         <p className="text-center text-brand-textSecondary py-12">No products found.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredProducts.map(p => (
-            <ProductCard key={p.id} product={p} onPurchase={startPurchase} />
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 tablet:grid-cols-3 laptop:grid-cols-4 desktop:grid-cols-5 gap-4 mb-8">
+          {filteredProducts.map(product => (
+            <ProductCard key={product.id} product={product} onPurchase={startPurchase} />
           ))}
         </div>
       )}
 
-      {/* Payment Modal */}
+      {/* PAYMENT MODAL */}
       {showPaymentModal && selectedProduct && (
-        <div className="modal">
-          <div className="modal-card">
-            <button onClick={() => setShowPaymentModal(false)} className="modal-close">
-              <X />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 relative">
+            <button
+              className="absolute top-3 right-3"
+              onClick={() => setShowPaymentModal(false)}
+            >
+              <X className="w-5 h-5" />
             </button>
+            <h2 className="text-xl font-bold mb-4">Purchase {selectedProduct.name}</h2>
 
-            <h2 className="text-xl font-bold mb-4">
-              Purchase {selectedProduct.name}
-            </h2>
+            <div className="space-y-3">
+              <button
+                onClick={() => setPaymentMethod('credit')}
+                className={`w-full py-2 rounded-lg border ${paymentMethod === 'credit' ? 'border-brand-orange bg-brand-orange/10' : ''}`}
+              >
+                <CreditCard className="inline w-4 h-4 mr-2" /> Credit/Debit Card
+              </button>
+              <button
+                onClick={() => setPaymentMethod('wallet')}
+                className={`w-full py-2 rounded-lg border ${paymentMethod === 'wallet' ? 'border-brand-orange bg-brand-orange/10' : ''}`}
+              >
+                <Wallet className="inline w-4 h-4 mr-2" /> Wallet / eWallet
+              </button>
+              <button
+                onClick={() => setPaymentMethod('paynow')}
+                className={`w-full py-2 rounded-lg border ${paymentMethod === 'paynow' ? 'border-brand-orange bg-brand-orange/10' : ''}`}
+              >
+                PayNow / QR
+              </button>
+            </div>
 
-            <button onClick={() => setPaymentMethod('credit')} className="pay-btn">
-              <CreditCard /> Credit Card
-            </button>
+            {/* Dynamic Payment Forms */}
+            {paymentMethod === 'credit' && (
+              <div className="mt-4 space-y-3">
+                <input type="text" placeholder="Card Number" className="w-full px-3 py-2 border rounded-lg"/>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="MM/YY" className="w-1/2 px-3 py-2 border rounded-lg"/>
+                  <input type="text" placeholder="CVV" className="w-1/2 px-3 py-2 border rounded-lg"/>
+                </div>
+                <input type="text" placeholder="Cardholder Name" className="w-full px-3 py-2 border rounded-lg"/>
+              </div>
+            )}
 
-            <button onClick={() => setPaymentMethod('wallet')} className="pay-btn">
-              <Wallet /> Wallet
-            </button>
+            {paymentMethod === 'wallet' && (
+              <div className="mt-4 space-y-3">
+                <input type="text" placeholder="Wallet ID / Mobile" className="w-full px-3 py-2 border rounded-lg"/>
+                <input type="text" placeholder="OTP (if required)" className="w-full px-3 py-2 border rounded-lg"/>
+              </div>
+            )}
+
+            {paymentMethod === 'paynow' && (
+              <div className="mt-4 text-center">
+                <p className="mb-2">Scan this QR to pay via PayNow:</p>
+                <img
+                  src={generateQRCode(`PAYNOW-${selectedProduct.id}-${Date.now()}`)}
+                  alt="PayNow QR"
+                  className="mx-auto w-40 h-40"
+                />
+              </div>
+            )}
 
             <button
-              onClick={confirmPayment}
-              disabled={!paymentMethod || isPaying}
-              className="confirm-btn"
+              onClick={proceedToReceipt}
+              disabled={!paymentMethod}
+              className="mt-4 w-full py-3 bg-brand-orange text-white font-bold rounded-lg"
             >
-              {isPaying ? 'Processing…' : 'Confirm Payment'}
+              Continue
             </button>
           </div>
         </div>
       )}
 
-      {/* Share Modal */}
-      {showShareModal && selectedProduct && (
-        <div className="modal">
-          <div className="modal-card">
-            <button onClick={closeShareModal} className="modal-close">
-              <X />
+      {/* RECEIPT MODAL */}
+      {showReceiptModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 text-center relative">
+            <button className="absolute top-3 right-3" onClick={() => setShowReceiptModal(false)}>
+              <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-xl font-bold mb-4">Share</h2>
+            <h2 className="text-xl font-bold mb-4">Confirm Purchase</h2>
+            <p className="mb-1"><strong>{selectedProduct.name}</strong></p>
+            <p className="mb-1">Price: S${selectedProduct.price}</p>
+            <p className="mb-1">Payment: {paymentMethod}</p>
 
-            {qrCode && <img src={qrCode} alt="QR" className="mx-auto mb-4 w-40" />}
+            {paymentMethod === 'paynow' && qrCode && (
+              <img src={qrCode} alt="PayNow QR" className="mx-auto w-40 h-40 mt-3"/>
+            )}
 
-            <button onClick={shareToWhatsApp} className="share-btn whatsapp">
-              Share via WhatsApp
-            </button>
-            <button onClick={shareViaSMS} className="share-btn sms">
-              Share via SMS
+            <button
+              onClick={confirmPurchase}
+              disabled={isPaying}
+              className="w-full py-3 bg-brand-orange text-white font-bold rounded-lg mt-4"
+            >
+              {isPaying ? 'Processing…' : 'Buy Now'}
             </button>
           </div>
         </div>
