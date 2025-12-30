@@ -118,6 +118,22 @@ export const extractCompanyAddress = (text) => {
 };
 
 /**
+ * extractLinkedIn
+ * Extracts LinkedIn profile URL from text
+ */
+export const extractLinkedIn = (text) => {
+  const linkedInRegex = /(?:linkedin\.com\/in\/|linkedin\.com\/pub\/)[a-zA-Z0-9-]+/i;
+  const match = text.match(linkedInRegex);
+  if (match) {
+    const url = match[0];
+    // Ensure it starts with http/https or just return the path
+    if (url.startsWith('http')) return url;
+    return `https://${url}`;
+  }
+  return '';
+};
+
+/**
  * extractCardInfo
  * Combines all OCR extraction into a single object
  * @param {File} file - image file
@@ -135,6 +151,7 @@ export const extractCardInfo = async (file) => {
     mobile: extractPhone(rawText),
     email: extractEmail(rawText),
     address: extractCompanyAddress(rawText),
+    linkedIn: extractLinkedIn(rawText),
     rawText,
   };
 };

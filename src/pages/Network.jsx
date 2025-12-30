@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Gift, Search, Filter, Plus, Upload, X, Grid3x3, List, Building2 } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { ArrowLeft, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
 import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
-import { extractTextFromImage, extractEmail, extractPhone, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress } from '../utils/ocr';
+import AddCardModal from '../components/AddCardModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 const CardGrid = ({ cards, onSelect, onDelete }) => (
   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -11,7 +13,7 @@ const CardGrid = ({ cards, onSelect, onDelete }) => (
       <div key={card.id} className="relative" onClick={() => onSelect(card)}>
         <img src={card.cardImageUrl || ''} alt={card.cardOwnerName || 'Card'} className="w-full h-48 object-cover rounded-lg border border-brand-brown/20" />
         <div className="absolute top-2 right-2">
-          <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="text-red-500 hover:text-red-400">
+          <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="text-red-500 hover:text-red-400 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -54,49 +56,6 @@ const CardList = ({ cards, onSelect, onDelete }) => (
   </div>
 );
 
-const UploadModal = ({ visible, onClose, cardImage, setCardImage, cardPreview, setCardPreview, handleAddCard, uploading }) => {
-  const handleCardUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
-      return;
-    }
-    setCardImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setCardPreview(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  if (!visible) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-brand-cardLight rounded-2xl p-6 max-w-md w-full relative shadow-2xl border border-brand-brown/20">
-        <button onClick={onClose} className="absolute top-4 right-4 text-brand-textSecondary hover:text-brand-brown">
-          <X className="w-6 h-6" />
-        </button>
-        <h2 className="text-xl font-bold text-brand-brown mb-4">Add Business Card</h2>
-        {cardPreview ? (
-          <div className="space-y-4">
-            <img src={cardPreview} alt="Preview" className="w-full h-64 object-contain rounded-lg border border-brand-brown/20" />
-            <button onClick={handleAddCard} disabled={uploading} className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight disabled:opacity-50 disabled:cursor-not-allowed">
-              {uploading ? 'Processing...' : 'Add Card'}
-            </button>
-          </div>
-        ) : (
-          <div className="border border-dashed border-brand-brown/30 rounded-lg p-8 text-center hover:border-brand-brown/50 transition-colors bg-white">
-            <input type="file" accept="image/*" onChange={handleCardUpload} className="hidden" id="card-upload-modal" />
-            <label htmlFor="card-upload-modal" className="cursor-pointer flex flex-col items-center gap-3">
-              <div className="p-4 bg-brand-orange/10 rounded-full"><Upload className="w-8 h-8 text-brand-orange" /></div>
-              <p className="text-sm font-medium text-brand-brown">Click to upload or take a photo</p>
-              <p className="text-xs text-brand-textSecondary mt-1">PNG, JPG up to 5MB</p>
-            </label>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const Network = () => {
   const navigate = useNavigate();
@@ -108,11 +67,11 @@ const Network = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBy, setFilterBy] = useState('all');
   const [viewMode, setViewMode] = useState('list');
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [cardImage, setCardImage] = useState(null);
-  const [cardPreview, setCardPreview] = useState(null);
+  const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated()) navigate('/login', { replace: true, state: { from: '/network' } });
@@ -131,8 +90,12 @@ const Network = () => {
       const response = await networkAPI.getCards();
       setCards(response?.data?.data || []);
     } catch (err) {
-      if (err.response?.status === 403) navigate('/login', { replace: true });
-      else alert('Failed to load cards');
+      if (err.response?.status === 403) {
+        toast.error('Session expired. Please log in again.');
+        navigate('/login', { replace: true });
+      } else {
+        toast.error('Failed to load cards. Please try again.');
+      }
     } finally { setLoading(false); }
   };
 
@@ -148,35 +111,66 @@ const Network = () => {
     setFilteredCards(filtered);
   };
 
-  const handleAddCard = async () => {
-    if (!cardImage) return alert('Please select an image');
+  const handleSaveCard = async (cardData) => {
     setUploading(true);
     try {
-      const ocrText = await extractTextFromImage(cardImage);
-      const cardData = {
-        cardOwnerName: extractName(ocrText),
-        companyName: extractCompany(ocrText),
-        department: extractDepartment(ocrText),
-        position: extractPosition(ocrText),
-        phone: extractPhone(ocrText),
-        mobile: extractPhone(ocrText),
-        email: extractEmail(ocrText),
-        companyAddress: extractCompanyAddress(ocrText),
-        cardImageUrl: cardPreview,
-        ocrText
-      };
-      const formData = new FormData();
-      formData.append('card', cardImage);
-      Object.entries(cardData).forEach(([k,v])=>formData.append(k,v||''));
-      await networkAPI.addCard(formData);
+      // Send as JSON (API expects JSON, not FormData)
+      await networkAPI.addCard(cardData);
       await loadCards();
-      setShowUploadModal(false); setCardImage(null); setCardPreview(null);
-    } catch { alert('Failed to add card'); } finally { setUploading(false); }
+      setShowAddCardModal(false);
+      toast.success('Business card added successfully! 🎉');
+    } catch (err) {
+      const response = err?.response;
+      const backendCode = response?.data?.code;
+      
+      if (backendCode === '400001') {
+        toast.error(
+          'Required fields are missing. Please ensure all fields are filled in correctly.',
+          { autoClose: 5000 }
+        );
+      } else if (response?.status === 403) {
+        toast.error('Session expired. Please log in again.');
+        navigate('/login', { replace: true });
+      } else if (!response) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        const errorMessage = response?.data?.message || 'Failed to add card. Please try again.';
+        toast.error(errorMessage);
+      }
+      // Re-throw to let modal handle it if needed
+      throw err;
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleDeleteCard = async (id) => {
-    if (!window.confirm('Are you sure?')) return;
-    try { await networkAPI.deleteCard(id); setCards(c=>c.filter(x=>x.id!==id)); } catch { alert('Failed to delete'); }
+  const handleDeleteClick = (id) => {
+    setCardToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteCard = async () => {
+    if (!cardToDelete) return;
+    
+    try {
+      await networkAPI.deleteCard(cardToDelete);
+      setCards(c => c.filter(x => x.id !== cardToDelete));
+      toast.success('Card deleted successfully');
+      setShowDeleteModal(false);
+      setCardToDelete(null);
+      // Close card preview if it's the deleted card
+      if (selectedCard?.id === cardToDelete) {
+        setSelectedCard(null);
+      }
+    } catch (err) {
+      const response = err?.response;
+      if (response?.status === 403) {
+        toast.error('Session expired. Please log in again.');
+        navigate('/login', { replace: true });
+      } else {
+        toast.error('Failed to delete card. Please try again.');
+      }
+    }
   };
 
   return (
@@ -189,9 +183,25 @@ const Network = () => {
               <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline text-sm">Back</span>
             </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
+            <img 
+              src="/images/logo.png" 
+              alt="Show you care" 
+              className="h-8 xs:h-10 sm:h-12 md:h-14 object-contain flex-shrink-0"
+              style={{ maxWidth: 'clamp(80px, 15vw, 150px)' }}
+            />
+            <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-2xl font-bold text-brand-orange truncate min-w-0">Network</h1>
           </div>
-          <button onClick={()=>navigate('/gifticon')} className="px-3 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-2"><Gift className="w-4 h-4"/>Gifticon</button>
+          <div className="flex items-center gap-2">
+            <button onClick={()=>navigate('/gifticon')} className="px-3 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-2"><Gift className="w-4 h-4"/>Gifticon</button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="p-2.5 bg-brand-cardLight border border-brand-brown/20 text-brand-brown rounded-lg font-medium hover:bg-brand-background hover:border-brand-orange/50 transition-colors flex items-center justify-center"
+              title="Profile"
+            >
+              <User className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -214,19 +224,190 @@ const Network = () => {
               <button onClick={()=>setViewMode('grid')} className={`p-2 rounded ${viewMode==='grid'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><Grid3x3 className="w-5 h-5"/></button>
               <button onClick={()=>setViewMode('list')} className={`p-2 rounded ${viewMode==='list'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><List className="w-5 h-5"/></button>
             </div>
-            <button onClick={()=>setShowUploadModal(true)} className="px-4 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-2"><Plus className="w-5 h-5"/>Add Card</button>
+            <button onClick={()=>setShowAddCardModal(true)} className="px-4 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-2"><Plus className="w-5 h-5"/>Add Card</button>
           </div>
         </div>
 
         {/* Cards */}
         {loading? <div className="text-center py-12 animate-spin">Loading...</div>
-        : filteredCards.length===0? <div className="text-center py-12">No cards yet. <button onClick={()=>setShowUploadModal(true)}>Add Your First Card</button></div>
-        : viewMode==='grid'? <CardGrid cards={filteredCards} onSelect={setSelectedCard} onDelete={handleDeleteCard}/>
-        : <CardList cards={filteredCards} onSelect={setSelectedCard} onDelete={handleDeleteCard}/>
+        : filteredCards.length===0? <div className="text-center py-12">No cards yet. <button onClick={()=>setShowAddCardModal(true)} className="text-brand-orange hover:underline">Add Your First Card</button></div>
+        : viewMode==='grid'? <CardGrid cards={filteredCards} onSelect={setSelectedCard} onDelete={handleDeleteClick}/>
+        : <CardList cards={filteredCards} onSelect={setSelectedCard} onDelete={handleDeleteClick}/>
         }
       </div>
 
-      <UploadModal visible={showUploadModal} onClose={()=>{setShowUploadModal(false);setCardImage(null);setCardPreview(null);}} cardImage={cardImage} setCardImage={setCardImage} cardPreview={cardPreview} setCardPreview={setCardPreview} handleAddCard={handleAddCard} uploading={uploading}/>
+      <AddCardModal
+        visible={showAddCardModal}
+        onClose={() => setShowAddCardModal(false)}
+        onSave={handleSaveCard}
+        uploading={uploading}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCardToDelete(null);
+        }}
+        onConfirm={handleDeleteCard}
+        title="Delete Card"
+        message="Are you sure you want to delete this business card? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Card Preview Modal */}
+      {selectedCard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-brand-cardLight rounded-2xl p-6 max-w-2xl w-full relative shadow-2xl border border-brand-brown/20 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setSelectedCard(null)}
+              className="absolute top-4 right-4 text-brand-textSecondary hover:text-brand-brown transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <h2 className="text-2xl font-bold text-brand-brown mb-6">Business Card Details</h2>
+
+            {/* Card Image */}
+            {selectedCard.cardImageUrl && (
+              <div className="mb-6">
+                <img
+                  src={selectedCard.cardImageUrl}
+                  alt={selectedCard.cardOwnerName || 'Business Card'}
+                  className="w-full max-h-96 object-contain rounded-lg border border-brand-brown/20 bg-white"
+                />
+              </div>
+            )}
+
+            {/* Card Information */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedCard.cardOwnerName && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Name</label>
+                    <p className="text-lg font-bold text-brand-brown">{selectedCard.cardOwnerName}</p>
+                  </div>
+                )}
+                {selectedCard.companyName && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Company</label>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-brand-textSecondary" />
+                      <p className="text-base text-brand-brown">{selectedCard.companyName}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.position && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Position</label>
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-brand-textSecondary" />
+                      <p className="text-base text-brand-brown">{selectedCard.position}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.department && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Department</label>
+                    <p className="text-base text-brand-brown">{selectedCard.department}</p>
+                  </div>
+                )}
+                {selectedCard.email && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Email</label>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-brand-textSecondary" />
+                      <a href={`mailto:${selectedCard.email}`} className="text-base text-brand-orange hover:underline">
+                        {selectedCard.email}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.phone && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Phone</label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-brand-textSecondary" />
+                      <a href={`tel:${selectedCard.phone}`} className="text-base text-brand-orange hover:underline">
+                        {selectedCard.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.mobile && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Mobile</label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-brand-textSecondary" />
+                      <a href={`tel:${selectedCard.mobile}`} className="text-base text-brand-orange hover:underline">
+                        {selectedCard.mobile}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.linkedIn && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">LinkedIn</label>
+                    <div className="flex items-center gap-2">
+                      <Linkedin className="w-4 h-4 text-brand-textSecondary" />
+                      <a
+                        href={selectedCard.linkedIn.startsWith('http') ? selectedCard.linkedIn : `https://${selectedCard.linkedIn}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-base text-brand-orange hover:underline truncate"
+                      >
+                        {selectedCard.linkedIn}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.createdAt && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Date Added</label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-brand-textSecondary" />
+                      <p className="text-base text-brand-brown">
+                        {new Date(selectedCard.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {selectedCard.companyAddress && (
+                <div>
+                  <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Company Address</label>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-brand-textSecondary mt-1 flex-shrink-0" />
+                    <p className="text-base text-brand-brown">{selectedCard.companyAddress}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-6 pt-4 border-t border-brand-brown/20">
+              <button
+                onClick={() => setSelectedCard(null)}
+                className="flex-1 py-2.5 px-4 border border-brand-brown/20 text-brand-brown rounded-lg font-medium hover:bg-brand-background transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleDeleteClick(selectedCard.id)}
+                className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+              >
+                Delete Card
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

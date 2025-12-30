@@ -6,6 +6,7 @@
  */
 
 const TOKEN_KEY = 'token';
+const USER_EMAIL_KEY = 'userEmail';
 
 /* =========================
    TOKEN HELPERS
@@ -34,6 +35,25 @@ export const setToken = (token) => {
  */
 export const removeToken = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_EMAIL_KEY);
+};
+
+/**
+ * Get user email from storage
+ * @returns {string|null}
+ */
+export const getUserEmail = () => {
+  return localStorage.getItem(USER_EMAIL_KEY);
+};
+
+/**
+ * Save user email
+ * @param {string} email
+ */
+export const setUserEmail = (email) => {
+  if (email) {
+    localStorage.setItem(USER_EMAIL_KEY, email);
+  }
 };
 
 /* =========================
@@ -57,6 +77,7 @@ export const isAuthenticated = () => {
 /**
  * Logout user
  * Clears token and redirects to login
+ * Note: Uses window.location.href for hard redirect to ensure clean state
  */
 export const logout = () => {
   removeToken();

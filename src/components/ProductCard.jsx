@@ -27,7 +27,7 @@ const ProductCard = ({ product, onPurchase }) => {
           </p>
         )}
         <p className="text-lg xs:text-xl sm:text-2xl tablet:text-3xl font-bold text-brand-orange mb-3 xs:mb-4">
-          KES {product.price?.toLocaleString() || '0'}
+          S${product.price?.toLocaleString() || '0'}
         </p>
 
         <button

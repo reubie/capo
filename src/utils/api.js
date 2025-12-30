@@ -14,7 +14,7 @@ export const registerLoadingHandler = (handler) => {
    BASE CONFIG
 ========================= */
 const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://3.27.128.227:8080';
+  import.meta.env.VITE_API_BASE_URL || 'https://jiomeapp.com';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -102,6 +102,11 @@ export const cardAPI = {
     api.get('/api/card/list', {
       meta: { loadingText: 'Fetching cards...' },
     }),
+
+  deleteCard: (id) =>
+    api.delete(`/api/card/${id}`, {
+      meta: { loadingText: 'Deleting card...' },
+    }),
 };
 
 /* =========================
@@ -142,6 +147,7 @@ export const gifticonAPI = {
 export const networkAPI = {
   getCards: () => cardAPI.getCards(),
   addCard: (cardData) => cardAPI.registerBusinessCard(cardData),
+  deleteCard: (id) => cardAPI.deleteCard(id),
 };
 
 export default api;

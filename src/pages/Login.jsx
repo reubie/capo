@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
 import { validateEmail, handleBackendResponse, getErrorMessage } from '../utils/helpers';
-import { setToken, resetAuth } from '../utils/auth';
+import { setToken, resetAuth, setUserEmail } from '../utils/auth';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -48,6 +48,10 @@ const Login = () => {
       if (result.success) {
         if (result.data?.accessToken) {
           setToken(result.data.accessToken); // store token centrally
+        }
+        // Store user email for profile display
+        if (formData.email) {
+          setUserEmail(formData.email);
         }
         // Redirect to the intended page
         navigate(from, { replace: true });

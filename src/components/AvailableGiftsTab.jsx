@@ -293,7 +293,7 @@ const AvailableGiftsTab = () => {
 
             <h2 className="text-xl font-bold mb-4">Confirm Purchase</h2>
             <p className="mb-1"><strong>{selectedProduct.name}</strong></p>
-            <p className="mb-1">Price: S${selectedProduct.price}</p>
+            <p className="mb-1">Price: S${selectedProduct.price?.toLocaleString() || '0'}</p>
             <p className="mb-1">Payment: {paymentMethod}</p>
 
             {paymentMethod === 'paynow' && qrCode && (

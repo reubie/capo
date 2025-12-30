@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Network } from 'lucide-react';
+import { ArrowLeft, Network, User } from 'lucide-react';
 import { isAuthenticated } from '../utils/auth';
 import AvailableGiftsTab from '../components/AvailableGiftsTab';
 import PurchasedGiftsTab from '../components/PurchasedGiftsTab';
@@ -36,17 +36,33 @@ const Gifticon = () => {
               <span className="hidden sm:inline text-xs xs:text-sm">Back</span>
             </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
+            <img 
+              src="/images/logo.png" 
+              alt="Show you care" 
+              className="h-8 xs:h-10 sm:h-12 md:h-14 object-contain flex-shrink-0"
+              style={{ maxWidth: 'clamp(80px, 15vw, 150px)' }}
+            />
+            <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">
               Gifticon
             </h1>
           </div>
-          <button
-            onClick={() => navigate('/network')}
-            className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center gap-1 xs:gap-2 flex-shrink-0 whitespace-nowrap"
-          >
-            <Network className="w-3 h-3 xs:w-4 xs:h-4" />
-            <span className="hidden xs:inline">Network</span>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => navigate('/network')}
+              className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 text-xs xs:text-sm sm:text-base bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center gap-1 xs:gap-2 whitespace-nowrap"
+            >
+              <Network className="w-3 h-3 xs:w-4 xs:h-4" />
+              <span className="hidden xs:inline">Network</span>
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="p-2 xs:p-2.5 bg-brand-cardLight border border-brand-brown/20 text-brand-brown rounded-lg font-medium hover:bg-brand-background hover:border-brand-orange/50 transition-colors flex items-center justify-center"
+              title="Profile"
+            >
+              <User className="w-4 h-4 xs:w-5 xs:h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
