@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { extractTextFromImage, extractEmail, extractPhone, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
+import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
 import { validateEmail } from '../utils/helpers';
+import { compressBusinessCardImage } from '../utils/imageCompression';
 
 const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'manual'
@@ -10,6 +11,10 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [cardPreview, setCardPreview] = useState(null);
   const [processingOCR, setProcessingOCR] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+  const dragCounterRef = useRef(0);
+  const processedImageRef = useRef(null);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -30,6 +35,35 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
 
+  // Prevent browser default drop behavior when modal is open
+  useEffect(() => {
+    const handleGlobalDrop = (e) => {
+      // Only prevent default if modal is visible
+      if (visible) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleGlobalDragOver = (e) => {
+      // Only prevent default if modal is visible
+      if (visible) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    if (visible) {
+      document.addEventListener('drop', handleGlobalDrop, false);
+      document.addEventListener('dragover', handleGlobalDragOver, false);
+    }
+
+    return () => {
+      document.removeEventListener('drop', handleGlobalDrop, false);
+      document.removeEventListener('dragover', handleGlobalDragOver, false);
+    };
+  }, [visible]);
+
   // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
@@ -38,6 +72,9 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       setCardPreview(null);
       setProcessingOCR(false);
       setShowForm(false);
+      setIsDragging(false);
+      dragCounterRef.current = 0;
+      processedImageRef.current = null;
       setFormData({
         cardOwnerName: '',
         companyName: '',
@@ -53,52 +90,15 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       });
       setFieldErrors({});
       setTouchedFields({});
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }, [visible]);
 
-  // Handle tab switch
-  const handleTabSwitch = (tab) => {
-    if (processingOCR) {
-      toast.warning('Please wait for OCR processing to complete');
-      return;
-    }
-    setActiveTab(tab);
-    if (tab === 'manual') {
-      setShowForm(true);
-    } else if (tab === 'upload' && !cardPreview) {
-      setShowForm(false);
-    }
-  };
-
-  // Handle card image upload
-  const handleCardUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload a valid image file');
-      return;
-    }
-
-    setCardImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const preview = reader.result;
-      setCardPreview(preview);
-    };
-    reader.readAsDataURL(file);
-  };
-
   // Process OCR when image is uploaded
-  const handleProcessOCR = async () => {
+  const handleProcessOCR = useCallback(async () => {
     if (!cardImage) {
-      toast.error('Please select an image first');
       return;
     }
 
@@ -113,7 +113,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
         department: extractDepartment(ocrText) || '',
         position: extractPosition(ocrText) || '',
         phone: extractPhone(ocrText) || '',
-        mobile: extractPhone(ocrText) || '',
+        mobile: extractMobile(ocrText) || '',
         email: extractEmail(ocrText) || '',
         companyAddress: extractCompanyAddress(ocrText) || '',
         linkedIn: extractLinkedIn(ocrText) || '',
@@ -137,6 +137,130 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     } finally {
       setProcessingOCR(false);
     }
+  }, [cardImage, cardPreview]);
+
+  // Auto-process OCR when image is uploaded
+  useEffect(() => {
+    if (cardImage && cardPreview && activeTab === 'upload' && !showForm && !processingOCR) {
+      // Only process if we haven't processed this image yet
+      if (processedImageRef.current !== cardPreview) {
+        processedImageRef.current = cardPreview;
+        // Use setTimeout to avoid calling during render
+        const timeoutId = setTimeout(() => {
+          handleProcessOCR();
+        }, 100);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [cardImage, cardPreview, activeTab, showForm, processingOCR, handleProcessOCR]);
+
+  // Handle tab switch
+  const handleTabSwitch = (tab) => {
+    if (processingOCR) {
+      toast.warning('Please wait for OCR processing to complete');
+      return;
+    }
+    setActiveTab(tab);
+    if (tab === 'manual') {
+      setShowForm(true);
+    } else if (tab === 'upload' && !cardPreview) {
+      setShowForm(false);
+    }
+  };
+
+  // Process file (shared by drag & drop and file input)
+  const processFile = async (file) => {
+    if (!file) return false;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return false;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file');
+      return false;
+    }
+
+    // Keep original file for OCR (better quality)
+    setCardImage(file);
+    
+    // Create preview from original (for display)
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const preview = reader.result;
+      setCardPreview(preview);
+    };
+    reader.readAsDataURL(file);
+    
+    // Compress image for backend (async)
+    try {
+      const compressedDataUrl = await compressBusinessCardImage(file);
+      // Use compressed version for cardImageUrl (to be sent to backend)
+      setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+    } catch (error) {
+      console.error('Image compression error:', error);
+      // Fallback to original if compression fails
+      const reader2 = new FileReader();
+      reader2.onloadend = () => {
+        setFormData(prev => ({ ...prev, cardImageUrl: reader2.result }));
+      };
+      reader2.readAsDataURL(file);
+    }
+    
+    return true;
+  };
+
+  // Handle card image upload from file input
+  const handleCardUpload = (e) => {
+    const file = e.target.files[0];
+    processFile(file);
+  };
+
+  // Handle drag and drop
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    // Get files from dataTransfer
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Process the file
+      processFile(file);
+      // Clear dataTransfer
+      if (e.dataTransfer) {
+        e.dataTransfer.clearData();
+      }
+    }
+    
+    return false;
   };
 
   // Handle form input change
@@ -169,9 +293,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
           phone: 'Phone',
           mobile: 'Mobile',
           companyAddress: 'Company address',
-          ocrText: 'OCR text',
-          cardImageUrl: 'Card image',
-          linkedIn: 'LinkedIn'
+          ocrText: 'OCR text'
         };
         error = `${fieldLabels[name] || name} is required`;
       }
@@ -189,21 +311,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     return !value || !value.trim();
   };
 
-  // Required fields (all except ocrText and cardImageUrl which are optional in manual mode)
+  // Required fields (department and LinkedIn are optional, cardImageUrl and ocrText are handled separately)
   const requiredFields = [
     'cardOwnerName',
     'companyName',
-    'department',
     'position',
     'phone',
     'mobile',
     'email',
-    'companyAddress',
-    'linkedIn'
+    'companyAddress'
   ];
-  
-  // Optional fields (only required when using upload/OCR flow)
-  const optionalFields = ['ocrText', 'cardImageUrl'];
 
   // Validate form before submission
   const validateForm = () => {
@@ -220,8 +337,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       email: 'Email',
       companyAddress: 'Company address',
       ocrText: 'OCR text',
-      cardImageUrl: 'Card image',
-      linkedIn: 'LinkedIn'
+      cardImageUrl: 'Card image'
     };
 
     // Validate all required fields
@@ -238,7 +354,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       isValid = false;
     }
 
-    // Validate URL formats
+    // Validate LinkedIn URL format (optional field, but if provided should be valid)
     if (formData.linkedIn && formData.linkedIn.trim()) {
       try {
         const url = formData.linkedIn.startsWith('http') 
@@ -251,22 +367,13 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       }
     }
 
-    // Validate cardImageUrl - only required in upload mode, optional in manual mode
-    // But if provided, must be valid format
+    // Validate cardImageUrl - required in upload mode
     if (activeTab === 'upload' && (!formData.cardImageUrl || !formData.cardImageUrl.trim())) {
       errors.cardImageUrl = 'Card image is required when uploading. Please upload an image.';
       isValid = false;
-    } else if (formData.cardImageUrl && formData.cardImageUrl.trim()) {
-      const isDataUrl = formData.cardImageUrl.startsWith('data:image');
-      const isHttpUrl = formData.cardImageUrl.startsWith('http');
-      if (!isDataUrl && !isHttpUrl) {
-        errors.cardImageUrl = 'Please provide a valid image URL (data URL or http/https URL)';
-        isValid = false;
-      }
     }
 
-    // OCR text is optional in manual mode, but if provided should be validated
-    // In upload mode, it should be auto-filled from OCR
+    // OCR text is required in upload mode
     if (activeTab === 'upload' && (!formData.ocrText || !formData.ocrText.trim())) {
       errors.ocrText = 'OCR text is required when uploading. Please process the image first.';
       isValid = false;
@@ -293,24 +400,55 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       return;
     }
 
-    // Prepare card data - send empty strings for optional fields if not provided
-    const cardData = {
+    // Prepare card data - send null for optional fields if not provided (instead of empty string)
+    // Helper to convert empty strings to null for optional fields
+    const toNullIfEmpty = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      return trimmed === '' ? null : trimmed;
+    };
+
+    // Prepare card JSON data (without image - image is sent as separate file)
+    // Note: cardImageUrl is a deleted field, do not include it
+    // Note: ocrText is set to empty string as backend database has length limits
+    const cardJsonData = {
       cardOwnerName: formData.cardOwnerName.trim(),
       companyName: formData.companyName.trim(),
-      department: formData.department.trim(),
+      department: toNullIfEmpty(formData.department), // Optional: send null if empty
       position: formData.position.trim(),
       phone: formData.phone.trim(),
       mobile: formData.mobile.trim(),
       email: formData.email.trim(),
       companyAddress: formData.companyAddress.trim(),
-      linkedIn: formData.linkedIn.trim(),
-      // Optional fields - send empty string if not provided (for manual entry)
-      cardImageUrl: formData.cardImageUrl?.trim() || '',
-      ocrText: formData.ocrText?.trim() || ''
+      linkedIn: toNullIfEmpty(formData.linkedIn), // Optional: send null if empty
+      ocrText: '' // Set to empty string - backend database has length limits
     };
 
+    // Log payload for debugging
+    console.log('🔍 Card JSON Data:', cardJsonData);
+    console.log('🔍 Card Image File:', cardImage);
+    console.log('🔍 LinkedIn value type:', typeof cardJsonData.linkedIn, 'value:', cardJsonData.linkedIn);
+    console.log('🔍 Department value type:', typeof cardJsonData.department, 'value:', cardJsonData.department);
+    console.log('🔍 OCR Text: (empty string - backend database has length limits)');
+
+    // Validate that file is provided (required by API)
+    if (!cardImage && activeTab === 'upload') {
+      toast.error('Please upload an image file. The API requires a file for card registration.');
+      return;
+    }
+
+    // For manual entry, file might not be required, but API schema shows it's required
+    // If no file in manual mode, we'll let the backend handle the validation
+    if (!cardImage && activeTab === 'manual') {
+      console.warn('⚠️ Manual entry without file - API may reject this');
+    }
+
     try {
-      await onSave(cardData);
+      // Pass both the file and card data to parent
+      await onSave({
+        file: cardImage, // Original file (null if not provided)
+        cardData: cardJsonData // JSON data without image
+      });
     } catch (error) {
       // Error handling is done in parent component
       throw error;
@@ -349,7 +487,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
             {hasError}
           </p>
         )}
-        {isMissing && isTouched && !hasError && (
+        {isMissing && isTouched && !hasError && required && (
           <p className="text-xs text-orange-500 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
             This field is required
@@ -412,10 +550,22 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
             {!showForm ? (
               <>
                 {!cardPreview ? (
-                  <div className="border border-dashed border-brand-brown/30 rounded-lg p-8 text-center hover:border-brand-brown/50 transition-colors bg-white">
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-lg p-12 md:p-16 text-center transition-colors bg-white min-h-[300px] md:min-h-[400px] flex flex-col items-center justify-center ${
+                      isDragging
+                        ? 'border-brand-orange bg-brand-orange/5'
+                        : 'border-brand-brown/30 hover:border-brand-brown/50'
+                    }`}
+                  >
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       onChange={handleCardUpload}
                       className="hidden"
                       id="card-upload"
@@ -423,15 +573,26 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                     />
                     <label
                       htmlFor="card-upload"
+                      onDragOver={(e) => {
+                        // Allow drop to bubble up to parent
+                        e.stopPropagation();
+                      }}
                       className={`cursor-pointer flex flex-col items-center gap-3 ${
                         processingOCR || uploading ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
+                      style={{ pointerEvents: 'auto' }}
                     >
                       <div className="p-4 bg-brand-orange/10 rounded-full">
-                        <Upload className="w-8 h-8 text-brand-orange" />
+                        {isDragging ? (
+                          <Upload className="w-8 h-8 text-brand-orange" />
+                        ) : (
+                          <Camera className="w-8 h-8 text-brand-orange" />
+                        )}
                       </div>
                       <p className="text-sm font-medium text-brand-brown">
-                        Click to upload or take a photo
+                        {isDragging
+                          ? 'Drop image here'
+                          : 'Click to upload, drag & drop, or take a photo'}
                       </p>
                       <p className="text-xs text-brand-textSecondary mt-1">
                         PNG, JPG up to 5MB
@@ -450,7 +611,11 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                         onClick={() => {
                           setCardPreview(null);
                           setCardImage(null);
-                          setFormData(prev => ({ ...prev, cardImageUrl: '' }));
+                          setFormData(prev => ({ ...prev, cardImageUrl: '', ocrText: '' }));
+                          setShowForm(false);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
                         }}
                         disabled={processingOCR || uploading}
                         className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50"
@@ -458,23 +623,17 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                         <X className="w-4 h-4 text-brand-brown" />
                       </button>
                     </div>
-                    <button
-                      onClick={handleProcessOCR}
-                      disabled={processingOCR || uploading}
-                      className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {processingOCR ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing OCR...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="w-5 h-5" />
-                          Extract Information from Card
-                        </>
-                      )}
-                    </button>
+                    {processingOCR && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium">Processing image and extracting information...</p>
+                            <p className="text-xs mt-1">This may take a few moments</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -567,11 +726,11 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
           {renderField('cardOwnerName', 'Full Name', 'text', 'John Doe', true)}
           {renderField('companyName', 'Company Name', 'text', 'Acme Corporation', true)}
           {renderField('position', 'Position/Title', 'text', 'Senior Manager', true)}
-          {renderField('department', 'Department', 'text', 'Sales & Marketing', true)}
+          {renderField('department', 'Department', 'text', 'Sales & Marketing', false)}
           {renderField('email', 'Email', 'email', 'john.doe@company.com', true)}
           {renderField('phone', 'Phone', 'tel', '+65 1234 5678', true)}
           {renderField('mobile', 'Mobile', 'tel', '+65 9123 4567', true)}
-          {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', true)}
+          {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', false)}
         </div>
         {renderField('companyAddress', 'Company Address', 'text', '123 Business Street, Singapore 123456', true)}
         {/* OCR Text field - only shown/required in upload mode */}
@@ -609,45 +768,10 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
             )}
           </div>
         )}
-        {/* Card Image URL field - only shown/required in upload mode */}
-        {activeTab === 'upload' && (
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-brand-brown">
-              Card Image URL <span className="text-red-500 ml-1">*</span>
-              <span className="text-xs text-brand-textSecondary ml-2 font-normal">(Auto-filled when image is uploaded)</span>
-            </label>
-            <input
-              type="text"
-              name="cardImageUrl"
-              value={formData.cardImageUrl}
-              onChange={handleInputChange}
-              placeholder="Image URL (auto-filled when uploading image)"
-              className={`w-full px-3 py-2 rounded-lg border ${
-                fieldErrors.cardImageUrl
-                  ? 'border-red-500 focus:ring-red-500'
-                  : isFieldMissing('cardImageUrl') && touchedFields.cardImageUrl
-                  ? 'border-orange-300 focus:ring-orange-500'
-                  : 'border-brand-brown/20 focus:ring-brand-orange/50'
-              } focus:outline-none focus:ring-2 bg-white text-brand-brown placeholder-brand-textSecondary`}
-            />
-            {fieldErrors.cardImageUrl && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {fieldErrors.cardImageUrl}
-              </p>
-            )}
-            {isFieldMissing('cardImageUrl') && touchedFields.cardImageUrl && !fieldErrors.cardImageUrl && (
-              <p className="text-xs text-orange-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Upload an image to auto-fill this field
-              </p>
-            )}
-          </div>
-        )}
+        {/* cardImageUrl is now hidden from user - auto-filled when image is uploaded */}
       </form>
     );
   }
 };
 
 export default AddCardModal;
-

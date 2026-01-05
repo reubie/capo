@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
 import { validateEmail, handleBackendResponse, getErrorMessage } from '../utils/helpers';
-import { setToken, resetAuth, setUserEmail } from '../utils/auth';
+import { setToken, resetAuth, setUserEmail, clearJustLoggedOutFlag } from '../utils/auth';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ const Login = () => {
 
   // Determine redirect after login: use location.state.from if exists, else default
   const from = location.state?.from || '/gifticon';
+  const reason = location.state?.reason; // 'token_expired' or 'after_signup'
 
   useEffect(() => {
     document.title = 'Show you care - Login';
@@ -53,6 +54,8 @@ const Login = () => {
         if (formData.email) {
           setUserEmail(formData.email);
         }
+        // Clear logout flag since user is now logged in
+        clearJustLoggedOutFlag();
         // Redirect to the intended page
         navigate(from, { replace: true });
       } else {
@@ -77,6 +80,18 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-brand-brown mb-2">Welcome Back</h1>
           <p className="text-sm text-brand-textSecondary">Enter your credentials to continue</p>
         </div>
+
+        {/* Show helpful message if redirected due to expired token or after logout */}
+        {reason === 'token_expired' && (
+          <div className="mb-4 p-3 bg-orange-500/20 border border-orange-500/50 rounded-lg text-orange-700 text-sm">
+            Your session has expired. Please log in again to continue.
+          </div>
+        )}
+        {reason === 'after_logout' && (
+          <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-blue-700 text-sm">
+            You've been logged out. Please log in again to continue.
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-600 text-sm">
@@ -127,7 +142,9 @@ const Login = () => {
         <div className="mt-6 pt-6 border-t border-brand-brown/20 text-center">
           <p className="text-sm text-brand-textSecondary mb-2">
             Don't have an account?{' '}
-            <button onClick={() => navigate('/register')} className="text-brand-orange font-semibold hover:underline">
+            <button onClick={() => navigate('/register', { 
+              state: { from: from } 
+            })} className="text-brand-orange font-semibold hover:underline">
               Register
             </button>
           </p>

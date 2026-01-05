@@ -22,8 +22,15 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Separate axios instance for multipart/form-data requests
+// Note: Don't set Content-Type header - let axios set it automatically with boundary
+const apiMultipart = axios.create({
+  baseURL: BASE_URL,
+  timeout: 30000, // Longer timeout for file uploads
+});
+
 /* =========================
-   REQUEST INTERCEPTOR
+   REQUEST INTERCEPTOR (for JSON API)
 ========================= */
 api.interceptors.request.use(
   (config) => {
@@ -46,10 +53,57 @@ api.interceptors.request.use(
 );
 
 /* =========================
-   RESPONSE INTERCEPTOR
+   REQUEST INTERCEPTOR (for Multipart API)
+========================= */
+apiMultipart.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (loadingHandler && config.meta?.loadingText) {
+      loadingHandler.showLoading(config.meta.loadingText);
+    }
+
+    return config;
+  },
+  (error) => {
+    loadingHandler?.hideLoading();
+    return Promise.reject(error);
+  }
+);
+
+/* =========================
+   RESPONSE INTERCEPTOR (for JSON API)
    403 = SESSION DEAD
 ========================= */
 api.interceptors.response.use(
+  (response) => {
+    loadingHandler?.hideLoading();
+    return response;
+  },
+  (error) => {
+    loadingHandler?.hideLoading();
+
+    if (error.response?.status === 403) {
+      // 🔐 Kill session completely
+      removeToken();
+
+      // 🔁 Hard redirect ensures clean state
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+/* =========================
+   RESPONSE INTERCEPTOR (for Multipart API)
+   403 = SESSION DEAD
+========================= */
+apiMultipart.interceptors.response.use(
   (response) => {
     loadingHandler?.hideLoading();
     return response;
@@ -93,10 +147,39 @@ export const authAPI = {
    BUSINESS CARD APIs
 ========================= */
 export const cardAPI = {
-  registerBusinessCard: (data) =>
-    api.post('/api/card/register', data, {
+  registerBusinessCard: (formData) => {
+    // Debug: Log FormData before sending
+    console.log('📤 Sending FormData to API:');
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        const str = String(value);
+        console.log(`  ${key}:`, str.length > 200 ? str.substring(0, 200) + '...' : str);
+      }
+    }
+    
+    return apiMultipart.post('/api/card/register', formData, {
       meta: { loadingText: 'Registering business card...' },
-    }),
+    });
+  },
+
+  registerMyBusinessCard: (formData) => {
+    // Debug: Log FormData before sending
+    console.log('📤 Sending FormData to My Card API:');
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        const str = String(value);
+        console.log(`  ${key}:`, str.length > 200 ? str.substring(0, 200) + '...' : str);
+      }
+    }
+    
+    return apiMultipart.post('/api/card/my-card-register', formData, {
+      meta: { loadingText: 'Registering your business card...' },
+    });
+  },
 
   getCards: () =>
     api.get('/api/card/list', {

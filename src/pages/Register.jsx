@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authAPI } from '../utils/api';
 import {
@@ -12,6 +12,10 @@ import {
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Preserve the intended destination from landing page
+  const intendedDestination = location.state?.from || '/gifticon';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -112,7 +116,10 @@ const Register = () => {
       toast.success('Account created successfully 🎉');
 
       setTimeout(() => {
-        navigate('/login');
+        // Pass the intended destination to login page
+        navigate('/login', { 
+          state: { from: intendedDestination, reason: 'after_signup' }
+        });
       }, 1500);
     } catch (err) {
       const res = err?.response;
@@ -285,7 +292,9 @@ const Register = () => {
         <div className="mt-6 text-center text-sm">
           Already have an account?{' '}
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/login', { 
+              state: { from: intendedDestination } 
+            })}
             className="text-brand-orange font-semibold"
           >
             Login

@@ -7,6 +7,7 @@
 
 const TOKEN_KEY = 'token';
 const USER_EMAIL_KEY = 'userEmail';
+const JUST_LOGGED_OUT_KEY = 'just_logged_out'; // Session flag to track recent logout
 
 /* =========================
    TOKEN HELPERS
@@ -76,12 +77,32 @@ export const isAuthenticated = () => {
 
 /**
  * Logout user
- * Clears token and redirects to login
+ * Clears token and redirects to landing page
  * Note: Uses window.location.href for hard redirect to ensure clean state
+ * Sets a session flag to indicate user just logged out (has an account)
  */
 export const logout = () => {
   removeToken();
-  window.location.href = '/login';
+  // Set flag to indicate user just logged out (they have an account)
+  // This helps smart navigation send them to Login instead of Register
+  sessionStorage.setItem(JUST_LOGGED_OUT_KEY, 'true');
+  window.location.href = '/';
+};
+
+/**
+ * Check if user just logged out (has an account)
+ * @returns {boolean}
+ */
+export const hasJustLoggedOut = () => {
+  return sessionStorage.getItem(JUST_LOGGED_OUT_KEY) === 'true';
+};
+
+/**
+ * Clear the "just logged out" flag
+ * Should be called after user successfully logs in or navigates
+ */
+export const clearJustLoggedOutFlag = () => {
+  sessionStorage.removeItem(JUST_LOGGED_OUT_KEY);
 };
 
 /**
@@ -119,4 +140,34 @@ export const getTokenPayload = () => {
 export const getUserRole = () => {
   const payload = getTokenPayload();
   return payload?.role || null;
+};
+
+/**
+ * Check if JWT token is expired
+ * @param {string} token - JWT token (optional, will get from storage if not provided)
+ * @returns {boolean} - true if expired or invalid, false if valid
+ */
+export const isTokenExpired = (token = null) => {
+  try {
+    const tokenToCheck = token || getToken();
+    if (!tokenToCheck) return true; // No token = expired
+
+    const payload = getTokenPayload();
+    if (!payload || !payload.exp) return true; // Invalid token or no expiration
+
+    // Check if token is expired (exp is in seconds, Date.now() is in milliseconds)
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp < currentTime;
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    return true; // If we can't decode, treat as expired for safety
+  }
+};
+
+/**
+ * Check if user has a valid (non-expired) token
+ * @returns {boolean}
+ */
+export const hasValidToken = () => {
+  return isAuthenticated() && !isTokenExpired();
 };

@@ -6,6 +6,7 @@ import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
 import AddCardModal from '../components/AddCardModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorModal from '../components/ErrorModal';
 
 const CardGrid = ({ cards, onSelect, onDelete }) => (
   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -24,12 +25,12 @@ const CardGrid = ({ cards, onSelect, onDelete }) => (
 
 const CardList = ({ cards, onSelect, onDelete }) => (
   <div className="bg-brand-cardLight rounded-xl shadow-lg border border-brand-brown/20 overflow-hidden">
-    <div className="hidden md:grid md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] gap-3 p-3 border-b border-brand-brown/20 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
-      <div></div><div>Name</div><div>Company</div><div>Phone</div><div>Email</div><div>Address</div><div>Date</div><div></div>
+    <div className="hidden md:grid md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 border-b border-brand-brown/20 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
+      <div></div><div>Name</div><div>Company</div><div>Phone</div><div>Address</div><div>Department</div><div></div>
     </div>
     <div className="divide-y divide-brand-brown/20">
-      {cards.map(card => (
-        <div key={card.id} onClick={() => onSelect(card)} className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_120px_50px] gap-3 p-3 hover:bg-brand-backgroundAlt cursor-pointer group items-center">
+      {cards.map((card, index) => (
+        <div key={card.id || `card-${index}`} onClick={() => onSelect(card)} className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 hover:bg-brand-backgroundAlt cursor-pointer group items-center">
           <div className="flex-shrink-0">
             {card.cardImageUrl ? (
               <img src={card.cardImageUrl} alt={card.cardOwnerName} className="w-12 h-12 rounded object-cover border border-brand-brown/20" />
@@ -42,9 +43,8 @@ const CardList = ({ cards, onSelect, onDelete }) => (
           <div className="min-w-0 font-semibold text-brand-brown truncate">{card.cardOwnerName || 'Unknown'}</div>
           <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.companyName || '-'}</div>
           <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.phone || card.mobile || '-'}</div>
-          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.email || '-'}</div>
-          <div className="hidden lg:block min-w-0 text-xs text-brand-textSecondary truncate">{card.companyAddress || '-'}</div>
-          <div className="hidden md:block text-right text-xs text-brand-textSecondary">{card.createdAt ? new Date(card.createdAt).toLocaleDateString() : '-'}</div>
+          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.companyAddress || '-'}</div>
+          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.department || '-'}</div>
           <div className="flex justify-end">
             <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity p-2">
               <X className="w-5 h-5" />
@@ -72,6 +72,8 @@ const Network = () => {
   const [selectedCard, setSelectedCard] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [cardToDelete, setCardToDelete] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated()) navigate('/login', { replace: true, state: { from: '/network' } });
@@ -88,7 +90,12 @@ const Network = () => {
     try {
       setLoading(true);
       const response = await networkAPI.getCards();
-      setCards(response?.data?.data || []);
+      const cardsData = response?.data?.data || [];
+      console.log('📋 Loaded cards:', cardsData.length, 'cards');
+      if (cardsData.length > 0) {
+        console.log('📋 Sample card data:', cardsData[0]);
+      }
+      setCards(cardsData);
     } catch (err) {
       if (err.response?.status === 403) {
         toast.error('Session expired. Please log in again.');
@@ -111,11 +118,46 @@ const Network = () => {
     setFilteredCards(filtered);
   };
 
-  const handleSaveCard = async (cardData) => {
+  const handleSaveCard = async ({ file, cardData }) => {
     setUploading(true);
     try {
-      // Send as JSON (API expects JSON, not FormData)
-      await networkAPI.addCard(cardData);
+      // Create FormData for multipart/form-data
+      const formData = new FormData();
+      
+      // Add the image file (required by API)
+      if (file) {
+        formData.append('file', file);
+        console.log('📎 Image file:', file.name, 'Size:', (file.size / 1024).toFixed(2), 'KB', 'Type:', file.type);
+      } else {
+        // For manual entry without image, create an empty file or handle accordingly
+        // Note: API requires file field, so we might need to send a placeholder
+        // Check with backend team if manual entry should skip file requirement
+        console.warn('⚠️ No file provided - manual entry mode');
+      }
+      
+      // Add card data as JSON string
+      const cardJsonString = JSON.stringify(cardData);
+      formData.append('card', cardJsonString);
+      
+      // Debug: Log FormData contents
+      console.group('🚀 Sending Card Data to Backend (multipart/form-data)');
+      console.log('Card JSON:', cardJsonString);
+      console.log('File:', file ? `${file.name} (${(file.size / 1024).toFixed(2)} KB, type: ${file.type})` : 'No file');
+      console.log('Card JSON size:', (new Blob([cardJsonString]).size / 1024).toFixed(2), 'KB');
+      
+      // Log FormData entries for debugging
+      console.log('FormData entries:');
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+        } else {
+          console.log(`  ${key}:`, typeof value === 'string' && value.length > 200 ? value.substring(0, 200) + '...' : value);
+        }
+      }
+      console.groupEnd();
+
+      // Send as multipart/form-data
+      await networkAPI.addCard(formData);
       await loadCards();
       setShowAddCardModal(false);
       toast.success('Business card added successfully! 🎉');
@@ -123,11 +165,28 @@ const Network = () => {
       const response = err?.response;
       const backendCode = response?.data?.code;
       
+      // Detailed error logging
+      console.group('❌ Card Upload Error');
+      console.log('HTTP Status:', response?.status);
+      console.log('Backend Code:', backendCode);
+      console.log('Backend Message:', response?.data?.message);
+      console.log('Full Response Data:', response?.data);
+      console.log('Error Object:', err);
+      console.groupEnd();
+      
       if (backendCode === '400001') {
         toast.error(
           'Required fields are missing. Please ensure all fields are filled in correctly.',
           { autoClose: 5000 }
         );
+      } else if (backendCode === '500001') {
+        // Log error details for debugging (not shown to user)
+        console.error('❌ 500001 System Error');
+        
+        // Show user-friendly error message
+        const backendMessage = response?.data?.message || 'A system error occurred';
+        setErrorMessage(`Unable to upload your business card. ${backendMessage}. Please try again or contact support if the problem continues.`);
+        setShowErrorModal(true);
       } else if (response?.status === 403) {
         toast.error('Session expired. Please log in again.');
         navigate('/login', { replace: true });
@@ -181,7 +240,7 @@ const Network = () => {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <button onClick={()=>location.state?.from?navigate(-1):navigate('/gifticon')} className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0">
               <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline text-sm">Back</span>
-            </button>
+              </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <img 
               src="/images/logo.png" 
@@ -191,7 +250,7 @@ const Network = () => {
             />
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-2xl font-bold text-brand-orange truncate min-w-0">Network</h1>
-          </div>
+            </div>
           <div className="flex items-center gap-2">
             <button onClick={()=>navigate('/gifticon')} className="px-3 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-2"><Gift className="w-4 h-4"/>Gifticon</button>
             <button
@@ -211,15 +270,15 @@ const Network = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-textSecondary w-5 h-5"/>
             <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-3 py-2 border border-brand-brown/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-brand-brown placeholder-brand-textSecondary"/>
-          </div>
-          <div className="flex items-center gap-2">
+            </div>
+            <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-brand-textSecondary hidden md:block"/>
             <select value={filterBy} onChange={e=>setFilterBy(e.target.value)} className="px-3 py-2 border border-brand-brown/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-brand-brown">
-              <option value="all">All</option>
-              <option value="date">Sort by Date</option>
-              <option value="name">Sort by Name</option>
-              <option value="company">Sort by Company</option>
-            </select>
+                <option value="all">All</option>
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+                <option value="company">Sort by Company</option>
+              </select>
             <div className="flex items-center gap-1 border border-brand-brown/20 rounded-lg p-1 bg-white">
               <button onClick={()=>setViewMode('grid')} className={`p-2 rounded ${viewMode==='grid'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><Grid3x3 className="w-5 h-5"/></button>
               <button onClick={()=>setViewMode('list')} className={`p-2 rounded ${viewMode==='list'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><List className="w-5 h-5"/></button>
@@ -257,6 +316,18 @@ const Network = () => {
         cancelText="Cancel"
       />
 
+      {/* Error Modal */}
+      <ErrorModal
+        visible={showErrorModal}
+        onClose={() => {
+          setShowErrorModal(false);
+          setErrorMessage('');
+        }}
+        title="Upload Error"
+        message={errorMessage || 'An error occurred while uploading the image. Please try again.'}
+        buttonText="Try Again"
+      />
+
       {/* Card Preview Modal */}
       {selectedCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
@@ -282,7 +353,7 @@ const Network = () => {
             )}
 
             {/* Card Information */}
-            <div className="space-y-4">
+              <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedCard.cardOwnerName && (
                   <div>
@@ -364,7 +435,7 @@ const Network = () => {
                   </div>
                 )}
                 {selectedCard.createdAt && (
-                  <div>
+                    <div>
                     <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Date Added</label>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-brand-textSecondary" />
@@ -385,9 +456,9 @@ const Network = () => {
                   <div className="flex items-start gap-2">
                     <MapPin className="w-4 h-4 text-brand-textSecondary mt-1 flex-shrink-0" />
                     <p className="text-base text-brand-brown">{selectedCard.companyAddress}</p>
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
             </div>
 
             {/* Actions */}

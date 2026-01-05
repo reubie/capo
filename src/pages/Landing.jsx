@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getToken, isTokenExpired, hasValidToken, hasJustLoggedOut, clearJustLoggedOutFlag } from '../utils/auth';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -8,6 +9,53 @@ const Landing = () => {
   useEffect(() => {
     document.title = 'Show you care - Gifticon & Network';
   }, []);
+
+  /**
+   * Smart navigation handler for Gifticon/Network clicks
+   * Handles automatic login based on token status:
+   * - Valid token → Navigate directly (auto-login)
+   * - Expired token → Navigate to login (user has account)
+   * - Just logged out → Navigate to login (user has account, just logged out)
+   * - No token & not just logged out → Navigate to signup (new user)
+   */
+  const handleSmartNavigation = (targetPath) => {
+    const token = getToken();
+    
+    // Case 1: User has a valid token → Auto-login and navigate
+    if (hasValidToken()) {
+      // Clear any logout flag since they're authenticated
+      clearJustLoggedOutFlag();
+      navigate(targetPath, { replace: true });
+      return;
+    }
+
+    // Case 2: Token exists but is expired → User has account, send to login
+    if (token && isTokenExpired(token)) {
+      clearJustLoggedOutFlag(); // Clear flag since we know they have account
+      navigate('/login', { 
+        replace: false,
+        state: { from: targetPath, reason: 'token_expired' }
+      });
+      return;
+    }
+
+    // Case 3: User just logged out → They have an account, send to login
+    if (hasJustLoggedOut()) {
+      clearJustLoggedOutFlag(); // Clear flag after using it
+      navigate('/login', {
+        replace: false,
+        state: { from: targetPath, reason: 'after_logout' }
+      });
+      return;
+    }
+
+    // Case 4: No token and didn't just log out → New user, send to signup
+    // Also handles malformed tokens (treated as no token for safety)
+    navigate('/register', {
+      replace: false,
+      state: { from: targetPath, reason: 'no_account' }
+    });
+  };
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -71,7 +119,7 @@ const Landing = () => {
           className="absolute inset-0 left-0 w-1/2 cursor-pointer transition-all duration-300"
           onMouseEnter={() => setHoveredSide('gifticon')}
           onMouseLeave={() => setHoveredSide(null)}
-          onClick={() => navigate('/gifticon')}
+          onClick={() => handleSmartNavigation('/gifticon')}
         />
 
         {/* Right Side - NETWORK (Clickable) */}
@@ -79,7 +127,7 @@ const Landing = () => {
           className="absolute inset-0 right-0 w-1/2 cursor-pointer transition-all duration-300"
           onMouseEnter={() => setHoveredSide('network')}
           onMouseLeave={() => setHoveredSide(null)}
-          onClick={() => navigate('/network')}
+          onClick={() => handleSmartNavigation('/network')}
         />
 
         {/* Central Content: Text on Sides */}
@@ -90,7 +138,7 @@ const Landing = () => {
               className="relative cursor-pointer transition-all duration-300"
               onMouseEnter={() => setHoveredSide('gifticon')}
               onMouseLeave={() => setHoveredSide(null)}
-              onClick={() => navigate('/gifticon')}
+              onClick={() => handleSmartNavigation('/gifticon')}
             >
               <h2 
                 className="font-bold text-brand-brown tracking-tight leading-none drop-shadow-md"
@@ -107,7 +155,7 @@ const Landing = () => {
               className="relative cursor-pointer transition-all duration-300"
               onMouseEnter={() => setHoveredSide('network')}
               onMouseLeave={() => setHoveredSide(null)}
-              onClick={() => navigate('/network')}
+              onClick={() => handleSmartNavigation('/network')}
               style={{
                 marginLeft: 'clamp(1rem, 3vw, 4rem)',
               }}
