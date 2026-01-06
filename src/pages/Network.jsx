@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
+import { Home, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
 import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
@@ -12,10 +12,19 @@ import ErrorModal from '../components/ErrorModal';
 const CardGrid = ({ cards, onSelect, onDelete }) => (
   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
     {cards.map(card => (
-      <div key={card.id} className="relative" onClick={() => onSelect(card)}>
-        <img src={card.cardImageUrl || ''} alt={card.cardOwnerName || 'Card'} className="w-full h-48 object-cover rounded-lg border border-brand-brown/20" />
+      <div key={card.id} className="relative bg-white rounded-lg border border-brand-brown/20 p-2" onClick={() => onSelect(card)}>
+        {card.cardImageUrl && (
+          <div className="w-full h-48 flex items-center justify-center bg-white rounded overflow-hidden">
+            <img 
+              src={card.cardImageUrl} 
+              alt={card.cardOwnerName || 'Card'} 
+              className="max-w-full max-h-full object-contain"
+              style={{ mixBlendMode: 'multiply' }}
+            />
+          </div>
+        )}
         <div className="absolute top-2 right-2">
-          <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="text-red-500 hover:text-red-400 transition-colors">
+          <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="text-red-500 hover:text-red-400 transition-colors bg-white/90 rounded-full p-1 shadow-sm">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -57,7 +66,6 @@ const CardList = ({ cards, onSelect, onDelete }) => (
 
 const Network = () => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [cards, setCards] = useState([]);
   const [filteredCards, setFilteredCards] = useState([]);
@@ -245,9 +253,9 @@ const Network = () => {
       <div className="sticky top-0 z-40 bg-brand-background/95 backdrop-blur-sm shadow-md border-b border-brand-brown/20">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <button onClick={()=>location.state?.from?navigate(-1):navigate('/gifticon')} className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0">
-              <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline text-sm">Back</span>
-              </button>
+            <button onClick={() => navigate('/')} className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0">
+              <Home className="w-5 h-5" /> <span className="hidden sm:inline text-sm">Home</span>
+            </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <img 
               src="/images/logo.png" 
@@ -350,16 +358,17 @@ const Network = () => {
 
             {/* Card Image */}
             {selectedCard.cardImageUrl && (
-              <div className="mb-6">
+              <div className="mb-6 bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
                 <img
                   src={selectedCard.cardImageUrl}
                   alt={selectedCard.cardOwnerName || 'Business Card'}
-                  className="w-full max-h-96 object-contain rounded-lg border border-brand-brown/20 bg-white"
+                  className="max-w-full max-h-96 object-contain"
+                  style={{ mixBlendMode: 'multiply' }}
                 />
               </div>
             )}
 
-            {/* Card Information */}
+            {/* Card Information - Only: Name, Company, Position, Phone, Email */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedCard.cardOwnerName && (
@@ -386,24 +395,16 @@ const Network = () => {
                     </div>
                   </div>
                 )}
-                {selectedCard.phone && (
+                {(selectedCard.mobile || selectedCard.phone) && (
                   <div>
                     <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Phone</label>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-brand-textSecondary" />
-                      <a href={`tel:${normalizePhoneNumber(selectedCard.phone).replace(/\s/g, '')}`} className="text-base text-brand-orange hover:underline">
-                        {normalizePhoneNumber(selectedCard.phone)}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {selectedCard.mobile && (
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Mobile</label>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-brand-textSecondary" />
-                      <a href={`tel:${normalizePhoneNumber(selectedCard.mobile).replace(/\s/g, '')}`} className="text-base text-brand-orange hover:underline">
-                        {normalizePhoneNumber(selectedCard.mobile)}
+                      <a 
+                        href={`tel:${normalizePhoneNumber(selectedCard.mobile || selectedCard.phone).replace(/\s/g, '')}`} 
+                        className="text-base text-brand-orange hover:underline"
+                      >
+                        {normalizePhoneNumber(selectedCard.mobile || selectedCard.phone)}
                       </a>
                     </div>
                   </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { ArrowLeft, User, Mail, LogOut, Shield, Calendar, CreditCard, Plus, Building2, Phone, MapPin, Briefcase, Edit2 } from 'lucide-react';
+import { Home, User, Mail, LogOut, Shield, Calendar, CreditCard, Plus, Building2, Phone, MapPin, Briefcase, Edit2 } from 'lucide-react';
 import { isAuthenticated, logout, getTokenPayload, getUserEmail } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
 import ConfirmModal from '../components/ConfirmModal';
@@ -163,11 +163,11 @@ const Profile = () => {
         <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 tablet:px-8 laptop:px-12 desktop:px-16 py-2 xs:py-3 sm:py-4 flex items-center justify-between gap-2 xs:gap-3">
           <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/')}
               className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 xs:w-5 xs:h-5" />
-              <span className="hidden sm:inline text-xs xs:text-sm">Back</span>
+              <Home className="w-4 h-4 xs:w-5 xs:h-5" />
+              <span className="hidden sm:inline text-xs xs:text-sm">Home</span>
             </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <img 
@@ -254,11 +254,12 @@ const Profile = () => {
               <div className="bg-white rounded-lg border border-brand-brown/10 overflow-hidden">
                 {/* Card Image */}
                 {myCard.cardImageUrl && (
-                  <div className="w-full h-48 bg-gray-100 border-b border-brand-brown/10">
+                  <div className="w-full bg-white border-b border-brand-brown/10 p-4 flex items-center justify-center">
                     <img
                       src={myCard.cardImageUrl}
                       alt={myCard.cardOwnerName || 'My Business Card'}
-                      className="w-full h-full object-contain"
+                      className="max-w-full max-h-48 object-contain"
+                      style={{ mixBlendMode: 'multiply' }}
                     />
                   </div>
                 )}

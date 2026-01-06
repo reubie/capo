@@ -4,12 +4,14 @@ import { toast } from 'react-toastify';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
 import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
 import { compressBusinessCardImage } from '../utils/imageCompression';
+import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
 
 const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'manual'
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
   const [processingOCR, setProcessingOCR] = useState(false);
+  const [processingCrop, setProcessingCrop] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -27,8 +29,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     email: '',
     companyAddress: '',
     linkedIn: '',
-    cardImageUrl: '',
-    ocrText: ''
+    cardImageUrl: ''
   });
 
   // Field errors
@@ -85,8 +86,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
         email: '',
         companyAddress: '',
         linkedIn: '',
-        cardImageUrl: '',
-        ocrText: ''
+        cardImageUrl: ''
       });
       setFieldErrors({});
       setTouchedFields({});
@@ -106,7 +106,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     try {
       const ocrText = await extractTextFromImage(cardImage);
       
-      // Extract data from OCR
+      // Extract data from OCR (ocrText is used internally but not stored in formData)
       const extractedData = {
         cardOwnerName: extractName(ocrText) || '',
         companyName: extractCompany(ocrText) || '',
@@ -117,8 +117,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
         email: extractEmail(ocrText) || '',
         companyAddress: extractCompanyAddress(ocrText) || '',
         linkedIn: extractLinkedIn(ocrText) || '',
-        cardImageUrl: cardPreview || '',
-        ocrText: ocrText || ''
+        cardImageUrl: cardPreview || ''
       };
 
       setFormData(extractedData);
@@ -130,8 +129,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       // Still show form for manual entry
       setFormData(prev => ({
         ...prev,
-        cardImageUrl: cardPreview || '',
-        ocrText: 'OCR extraction failed'
+        cardImageUrl: cardPreview || ''
       }));
       setShowForm(true);
     } finally {
@@ -183,30 +181,91 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       return false;
     }
 
-    // Keep original file for OCR (better quality)
-    setCardImage(file);
+    setProcessingCrop(true);
     
-    // Create preview from original (for display)
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const preview = reader.result;
-      setCardPreview(preview);
-    };
-    reader.readAsDataURL(file);
-    
-    // Compress image for backend (async)
     try {
-      const compressedDataUrl = await compressBusinessCardImage(file);
-      // Use compressed version for cardImageUrl (to be sent to backend)
-      setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+      // Step 1: Auto-detect and crop business card (removes background)
+      toast.info('Detecting business card and removing background...', { autoClose: 2000 });
+      const { croppedDataUrl, crop, warnings, quality } = await autoCropBusinessCard(file);
+      
+      // Display warnings to user
+      if (warnings && warnings.length > 0) {
+        warnings.forEach(warning => {
+          if (warning.severity === 'error') {
+            toast.error(warning.message + (warning.suggestion ? ` ${warning.suggestion}` : ''), { 
+              autoClose: 5000 
+            });
+          } else if (warning.severity === 'warning') {
+            toast.warning(warning.message + (warning.suggestion ? ` ${warning.suggestion}` : ''), { 
+              autoClose: 4000 
+            });
+          } else {
+            toast.info(warning.message, { autoClose: 3000 });
+          }
+        });
+      }
+      
+      // Log quality metrics for debugging
+      if (quality) {
+        console.log('📊 Card Detection Quality:', {
+          blurScore: quality.blurScore,
+          isBlurry: quality.isBlurry,
+          isTooSmall: quality.isTooSmall,
+          confidence: quality.detectionConfidence
+        });
+      }
+      
+      // Convert cropped data URL back to File for OCR and compression
+      const croppedFile = dataURLtoFile(croppedDataUrl, file.name);
+      
+      // Step 2: Use cropped image for preview
+      setCardPreview(croppedDataUrl);
+      
+      // Step 3: Keep cropped file for OCR (better accuracy on cropped card)
+      setCardImage(croppedFile);
+      
+      // Step 4: Compress cropped image for backend
+      try {
+        const compressedDataUrl = await compressBusinessCardImage(croppedFile);
+        setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+      } catch (error) {
+        console.error('Image compression error:', error);
+        // Fallback to cropped image if compression fails
+        setFormData(prev => ({ ...prev, cardImageUrl: croppedDataUrl }));
+      }
+      
+      // Success message (only if no critical errors)
+      const hasErrors = warnings && warnings.some(w => w.severity === 'error');
+      if (!hasErrors) {
+        toast.success('Business card detected and background removed!', { autoClose: 2000 });
+      }
     } catch (error) {
-      console.error('Image compression error:', error);
-      // Fallback to original if compression fails
-      const reader2 = new FileReader();
-      reader2.onloadend = () => {
-        setFormData(prev => ({ ...prev, cardImageUrl: reader2.result }));
+      console.error('Auto-crop error:', error);
+      toast.warning('Could not auto-detect card. Using full image.', { autoClose: 3000 });
+      
+      // Fallback: use original image
+      setCardImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const preview = reader.result;
+        setCardPreview(preview);
       };
-      reader2.readAsDataURL(file);
+      reader.readAsDataURL(file);
+      
+      // Compress original for backend
+      try {
+        const compressedDataUrl = await compressBusinessCardImage(file);
+        setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+      } catch (error) {
+        console.error('Image compression error:', error);
+        const reader2 = new FileReader();
+        reader2.onloadend = () => {
+          setFormData(prev => ({ ...prev, cardImageUrl: reader2.result }));
+        };
+        reader2.readAsDataURL(file);
+      }
+    } finally {
+      setProcessingCrop(false);
     }
     
     return true;
@@ -299,8 +358,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
           position: 'Position',
           phone: 'Phone',
           mobile: 'Mobile',
-          companyAddress: 'Company address',
-          ocrText: 'OCR text'
+          companyAddress: 'Company address'
         };
         error = `${fieldLabels[name] || name} is required`;
       }
@@ -318,7 +376,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     return !value || !value.trim();
   };
 
-  // Required fields (department and LinkedIn are optional, cardImageUrl and ocrText are handled separately)
+  // Required fields (department and LinkedIn are optional, cardImageUrl and ocrText are handled internally)
   const requiredFields = [
     'cardOwnerName',
     'companyName',
@@ -343,7 +401,6 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       mobile: 'Mobile',
       email: 'Email',
       companyAddress: 'Company address',
-      ocrText: 'OCR text',
       cardImageUrl: 'Card image'
     };
 
@@ -380,11 +437,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       isValid = false;
     }
 
-    // OCR text is required in upload mode
-    if (activeTab === 'upload' && (!formData.ocrText || !formData.ocrText.trim())) {
-      errors.ocrText = 'OCR text is required when uploading. Please process the image first.';
-      isValid = false;
-    }
+    // OCR text is processed internally but not validated - it's sent as empty string to backend
 
     setFieldErrors(errors);
     return isValid;
@@ -608,34 +661,39 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="relative">
+                    <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
                       <img
                         src={cardPreview}
                         alt="Card preview"
-                        className="w-full h-64 object-contain rounded-lg border border-brand-brown/20 bg-white"
+                        className="max-w-full max-h-64 object-contain"
+                        style={{ mixBlendMode: 'multiply' }}
                       />
                       <button
                         onClick={() => {
                           setCardPreview(null);
                           setCardImage(null);
-                          setFormData(prev => ({ ...prev, cardImageUrl: '', ocrText: '' }));
+                          setFormData(prev => ({ ...prev, cardImageUrl: '' }));
                           setShowForm(false);
                           if (fileInputRef.current) {
                             fileInputRef.current.value = '';
                           }
                         }}
-                        disabled={processingOCR || uploading}
-                        className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50"
+                        disabled={processingCrop || processingOCR || uploading}
+                        className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
                       >
                         <X className="w-4 h-4 text-brand-brown" />
                       </button>
                     </div>
-                    {processingOCR && (
+                    {(processingCrop || processingOCR) && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div className="flex items-center gap-3">
                           <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                           <div className="text-sm text-blue-800">
-                            <p className="font-medium">Processing image and extracting information...</p>
+                            <p className="font-medium">
+                              {processingCrop 
+                                ? 'Detecting business card and removing background...'
+                                : 'Processing image and extracting information...'}
+                            </p>
                             <p className="text-xs mt-1">This may take a few moments</p>
                           </div>
                         </div>
@@ -647,11 +705,12 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
             ) : (
               <div className="space-y-4">
                 {cardPreview && (
-                  <div className="relative">
+                  <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
                     <img
                       src={cardPreview}
                       alt="Card preview"
-                      className="w-full h-48 object-contain rounded-lg border border-brand-brown/20 bg-white"
+                      className="max-w-full max-h-48 object-contain"
+                      style={{ mixBlendMode: 'multiply' }}
                     />
                   </div>
                 )}
@@ -740,41 +799,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
           {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', false)}
         </div>
         {renderField('companyAddress', 'Company Address', 'text', '123 Business Street, Singapore 123456', true)}
-        {/* OCR Text field - only shown/required in upload mode */}
-        {activeTab === 'upload' && (
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-brand-brown">
-              OCR Text <span className="text-red-500 ml-1">*</span>
-              <span className="text-xs text-brand-textSecondary ml-2 font-normal">(Auto-filled from image)</span>
-            </label>
-            <textarea
-              name="ocrText"
-              value={formData.ocrText}
-              onChange={handleInputChange}
-              placeholder="OCR text will be auto-filled after processing image..."
-              rows={3}
-              className={`w-full px-3 py-2 rounded-lg border ${
-                fieldErrors.ocrText
-                  ? 'border-red-500 focus:ring-red-500'
-                  : isFieldMissing('ocrText') && touchedFields.ocrText
-                  ? 'border-orange-300 focus:ring-orange-500'
-                  : 'border-brand-brown/20 focus:ring-brand-orange/50'
-              } focus:outline-none focus:ring-2 bg-white text-brand-brown placeholder-brand-textSecondary resize-none`}
-            />
-            {fieldErrors.ocrText && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {fieldErrors.ocrText}
-              </p>
-            )}
-            {isFieldMissing('ocrText') && touchedFields.ocrText && !fieldErrors.ocrText && (
-              <p className="text-xs text-orange-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Process the image to extract OCR text
-              </p>
-            )}
-          </div>
-        )}
+        {/* OCR text is processed internally but not displayed to user - sent as empty string to backend */}
         {/* cardImageUrl is now hidden from user - auto-filled when image is uploaded */}
       </form>
     );
