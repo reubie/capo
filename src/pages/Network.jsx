@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { ArrowLeft, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
 import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
+import { normalizePhoneNumber } from '../utils/helpers';
 import AddCardModal from '../components/AddCardModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorModal from '../components/ErrorModal';
@@ -25,26 +26,23 @@ const CardGrid = ({ cards, onSelect, onDelete }) => (
 
 const CardList = ({ cards, onSelect, onDelete }) => (
   <div className="bg-brand-cardLight rounded-xl shadow-lg border border-brand-brown/20 overflow-hidden">
-    <div className="hidden md:grid md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 border-b border-brand-brown/20 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
-      <div></div><div>Name</div><div>Company</div><div>Phone</div><div>Address</div><div>Department</div><div></div>
+    <div className="hidden md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 border-b border-brand-brown/20 text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
+      <div>Name</div><div>Company</div><div>Position</div><div>Phone</div><div>Email</div><div></div>
     </div>
     <div className="divide-y divide-brand-brown/20">
       {cards.map((card, index) => (
-        <div key={card.id || `card-${index}`} onClick={() => onSelect(card)} className="grid grid-cols-[60px_1fr] md:grid-cols-[60px_1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 hover:bg-brand-backgroundAlt cursor-pointer group items-center">
-          <div className="flex-shrink-0">
-            {card.cardImageUrl ? (
-              <img src={card.cardImageUrl} alt={card.cardOwnerName} className="w-12 h-12 rounded object-cover border border-brand-brown/20" />
-            ) : (
-              <div className="w-12 h-12 rounded bg-white border border-brand-brown/20 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-brand-textSecondary" />
-              </div>
-            )}
-          </div>
+        <div key={card.id || `card-${index}`} onClick={() => onSelect(card)} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_1fr_80px] gap-3 p-3 hover:bg-brand-backgroundAlt cursor-pointer group items-center">
           <div className="min-w-0 font-semibold text-brand-brown truncate">{card.cardOwnerName || 'Unknown'}</div>
           <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.companyName || '-'}</div>
-          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.phone || card.mobile || '-'}</div>
-          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.companyAddress || '-'}</div>
-          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.department || '-'}</div>
+          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.position || '-'}</div>
+          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">
+            {card.mobile 
+              ? normalizePhoneNumber(card.mobile) 
+              : card.phone 
+                ? normalizePhoneNumber(card.phone) 
+                : '-'}
+          </div>
+          <div className="hidden md:block min-w-0 text-xs text-brand-textSecondary truncate">{card.email || '-'}</div>
           <div className="flex justify-end">
             <button onClick={e => { e.stopPropagation(); onDelete(card.id); }} className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition-opacity p-2">
               <X className="w-5 h-5" />
@@ -95,7 +93,16 @@ const Network = () => {
       if (cardsData.length > 0) {
         console.log('📋 Sample card data:', cardsData[0]);
       }
-      setCards(cardsData);
+      
+      // Normalize phone numbers when loading from backend
+      const normalizedCards = cardsData.map(card => ({
+        ...card,
+        phone: card.phone ? normalizePhoneNumber(card.phone) : card.phone,
+        mobile: card.mobile ? normalizePhoneNumber(card.mobile) : card.mobile,
+      }));
+      
+      // Set cards with normalized phone numbers
+      setCards(normalizedCards);
     } catch (err) {
       if (err.response?.status === 403) {
         toast.error('Session expired. Please log in again.');
@@ -353,7 +360,7 @@ const Network = () => {
             )}
 
             {/* Card Information */}
-              <div className="space-y-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedCard.cardOwnerName && (
                   <div>
@@ -379,10 +386,26 @@ const Network = () => {
                     </div>
                   </div>
                 )}
-                {selectedCard.department && (
+                {selectedCard.phone && (
                   <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Department</label>
-                    <p className="text-base text-brand-brown">{selectedCard.department}</p>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Phone</label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-brand-textSecondary" />
+                      <a href={`tel:${normalizePhoneNumber(selectedCard.phone).replace(/\s/g, '')}`} className="text-base text-brand-orange hover:underline">
+                        {normalizePhoneNumber(selectedCard.phone)}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedCard.mobile && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Mobile</label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-brand-textSecondary" />
+                      <a href={`tel:${normalizePhoneNumber(selectedCard.mobile).replace(/\s/g, '')}`} className="text-base text-brand-orange hover:underline">
+                        {normalizePhoneNumber(selectedCard.mobile)}
+                      </a>
+                    </div>
                   </div>
                 )}
                 {selectedCard.email && (
@@ -396,69 +419,7 @@ const Network = () => {
                     </div>
                   </div>
                 )}
-                {selectedCard.phone && (
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Phone</label>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-brand-textSecondary" />
-                      <a href={`tel:${selectedCard.phone}`} className="text-base text-brand-orange hover:underline">
-                        {selectedCard.phone}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {selectedCard.mobile && (
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Mobile</label>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-brand-textSecondary" />
-                      <a href={`tel:${selectedCard.mobile}`} className="text-base text-brand-orange hover:underline">
-                        {selectedCard.mobile}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {selectedCard.linkedIn && (
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">LinkedIn</label>
-                    <div className="flex items-center gap-2">
-                      <Linkedin className="w-4 h-4 text-brand-textSecondary" />
-                      <a
-                        href={selectedCard.linkedIn.startsWith('http') ? selectedCard.linkedIn : `https://${selectedCard.linkedIn}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-base text-brand-orange hover:underline truncate"
-                      >
-                        {selectedCard.linkedIn}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {selectedCard.createdAt && (
-                    <div>
-                    <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Date Added</label>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-brand-textSecondary" />
-                      <p className="text-base text-brand-brown">
-                        {new Date(selectedCard.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-              {selectedCard.companyAddress && (
-                <div>
-                  <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Company Address</label>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-brand-textSecondary mt-1 flex-shrink-0" />
-                    <p className="text-base text-brand-brown">{selectedCard.companyAddress}</p>
-                </div>
-              </div>
-            )}
             </div>
 
             {/* Actions */}

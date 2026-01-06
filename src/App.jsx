@@ -36,7 +36,7 @@ const LoaderBridge = () => {
 function App() {
   return (
     <LoadingProvider>
-      <Router>
+    <Router>
         {/* 🔄 Global Loader Overlay */}
         <GlobalLoader />
 
@@ -54,47 +54,47 @@ function App() {
           draggable
         />
 
-        <Routes>
+      <Routes>
           {/* Public landing page */}
-          <Route path="/" element={<Landing />} />
-
+        <Route path="/" element={<Landing />} />
+        
           {/* Public pages */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } 
+        />
 
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            }
-          />
-
+        <Route 
+          path="/register" 
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } 
+        />
+        
           {/* Protected routes */}
-          <Route
-            path="/gifticon"
-            element={
-              <ProtectedRoute>
-                <Gifticon />
-              </ProtectedRoute>
-            }
-          />
+        <Route 
+          path="/gifticon" 
+          element={
+            <ProtectedRoute>
+              <Gifticon />
+            </ProtectedRoute>
+          } 
+        />
 
-          <Route
-            path="/network"
-            element={
-              <ProtectedRoute>
-                <Network />
-              </ProtectedRoute>
-            }
-          />
+        <Route 
+          path="/network" 
+          element={
+            <ProtectedRoute>
+              <Network />
+            </ProtectedRoute>
+          } 
+        />
 
           <Route
             path="/profile"
@@ -104,8 +104,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </Router>
+      </Routes>
+    </Router>
     </LoadingProvider>
   );
 }

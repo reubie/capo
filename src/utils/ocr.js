@@ -4,6 +4,7 @@
  */
 
 import Tesseract from 'tesseract.js';
+import { normalizePhoneNumber } from './helpers';
 
 /**
  * extractTextFromImage
@@ -73,9 +74,9 @@ export const extractPhone = (text) => {
     }
   }
   
-  // Return first phone (usually the main/office number)
+  // Return first phone (usually the main/office number) and normalize it
   if (validPhones.length > 0) {
-    return validPhones[0];
+    return normalizePhoneNumber(validPhones[0]);
   }
   
   return '';
@@ -96,7 +97,7 @@ export const extractMobile = (text) => {
     if (phoneMatch) {
       const digits = phoneMatch[0].replace(/\D/g, '');
       if (digits.length >= 6 && digits.length <= 15) {
-        return phoneMatch[0].trim();
+        return normalizePhoneNumber(phoneMatch[0].trim());
       }
     }
   }
@@ -117,9 +118,9 @@ export const extractMobile = (text) => {
     }
   }
   
-  // Return second phone if available
+  // Return second phone if available and normalize it
   if (validPhones.length >= 2) {
-    return validPhones[1];
+    return normalizePhoneNumber(validPhones[1]);
   }
   
   return '';

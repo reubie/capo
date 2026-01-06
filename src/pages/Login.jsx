@@ -68,14 +68,32 @@ const Login = () => {
     }
   };
 
+  // Handle click outside the card to return to landing page
+  const handleBackgroundClick = (e) => {
+    // Check if click is inside the card - if so, don't navigate
+    const cardElement = e.currentTarget.querySelector('.relative.z-10');
+    if (cardElement && cardElement.contains(e.target)) {
+      return; // Click is inside the card, don't navigate
+    }
+    
+    // Click is outside the card (on background), navigate to landing page
+    navigate('/');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      onClick={handleBackgroundClick}
+    >
       {/* Background */}
       <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/background-img.png')" }} />
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
       {/* Login Card */}
-      <div className="relative z-10 w-full max-w-md laptop:max-w-lg bg-brand-cardLight rounded-xl shadow-2xl p-6 border border-brand-brown/20">
+      <div 
+        className="relative z-10 w-full max-w-md laptop:max-w-lg bg-brand-cardLight rounded-xl shadow-2xl p-6 border border-brand-brown/20"
+        onClick={(e) => e.stopPropagation()} // Prevent background click when clicking inside card
+      >
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-brand-brown mb-2">Welcome Back</h1>
           <p className="text-sm text-brand-textSecondary">Enter your credentials to continue</p>

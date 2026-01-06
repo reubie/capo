@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authAPI } from '../utils/api';
+import { setToken, setUserEmail, clearJustLoggedOutFlag } from '../utils/auth';
 import {
   validateEmail,
   validatePassword,
   getPasswordStrength,
   validateName,
   cn,
+  handleBackendResponse,
 } from '../utils/helpers';
 
 const Register = () => {
@@ -113,14 +115,37 @@ const Register = () => {
       console.log('Backend response →', response.data);
       console.groupEnd();
 
-      toast.success('Account created successfully 🎉');
+      // Parse the backend response
+      const result = handleBackendResponse(response.data);
 
-      setTimeout(() => {
-        // Pass the intended destination to login page
-        navigate('/login', { 
-          state: { from: intendedDestination, reason: 'after_signup' }
-        });
-      }, 1500);
+      if (result.success) {
+        toast.success('Account created successfully 🎉');
+
+        // Check if registration response includes an access token (auto-login)
+        if (result.data?.accessToken) {
+          // Auto-login: Store token and user email
+          setToken(result.data.accessToken);
+          if (formData.email) {
+            setUserEmail(formData.email);
+          }
+          // Clear logout flag since user is now logged in
+          clearJustLoggedOutFlag();
+          
+          // Redirect directly to intended destination (authenticated experience)
+          setTimeout(() => {
+            navigate(intendedDestination, { replace: true });
+          }, 1500);
+        } else {
+          // No token provided - redirect to login page
+          setTimeout(() => {
+            navigate('/login', { 
+              state: { from: intendedDestination, reason: 'after_signup' }
+            });
+          }, 1500);
+        }
+      } else {
+        toast.error(result.message || 'Registration failed. Please try again.');
+      }
     } catch (err) {
       const res = err?.response;
 
@@ -186,14 +211,38 @@ const Register = () => {
   /* =========================
      UI
   ========================= */
+  
+  // Handle click outside the card to return to landing page
+  const handleBackgroundClick = (e) => {
+    // Check if click is inside the card - if so, don't navigate
+    const cardElement = e.currentTarget.querySelector('.relative.z-10');
+    if (cardElement && cardElement.contains(e.target)) {
+      return; // Click is inside the card, don't navigate
+    }
+    
+    // Click is outside the card (on background), navigate to landing page
+    navigate('/');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-brand-cardLight rounded-2xl shadow-2xl p-6 border border-brand-brown/20">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      onClick={handleBackgroundClick}
+    >
+      {/* Background - Same as Login page */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/background-img.png')" }} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+
+      {/* Register Card */}
+      <div 
+        className="relative z-10 w-full max-w-md laptop:max-w-lg bg-brand-cardLight rounded-xl shadow-2xl p-6 border border-brand-brown/20"
+        onClick={(e) => e.stopPropagation()} // Prevent background click when clicking inside card
+      >
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-brand-brown">
+          <h1 className="text-3xl font-bold text-brand-brown mb-2">
             Create Account
           </h1>
-          <p className="text-brand-textSecondary">
+          <p className="text-sm text-brand-textSecondary">
             Join Show you care today
           </p>
         </div>
@@ -230,7 +279,7 @@ const Register = () => {
               placeholder="Full Name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
             />
             {fieldErrors.name && (
               <p className="text-red-500 text-sm mt-1">
@@ -245,7 +294,7 @@ const Register = () => {
               placeholder="Email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
             />
             {fieldErrors.email && (
               <p className="text-red-500 text-sm mt-1">
@@ -261,7 +310,7 @@ const Register = () => {
               placeholder="Password"
               value={formData.password}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border rounded-lg"
+              className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
             />
 
             {renderPasswordChecklist()}
@@ -283,21 +332,29 @@ const Register = () => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-brand-orange text-white rounded-lg"
+            className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors"
           >
             Create Account
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          Already have an account?{' '}
-          <button
-            onClick={() => navigate('/login', { 
-              state: { from: intendedDestination } 
-            })}
-            className="text-brand-orange font-semibold"
+        <div className="mt-6 pt-6 border-t border-brand-brown/20 text-center">
+          <p className="text-sm text-brand-textSecondary mb-2">
+            Already have an account?{' '}
+            <button
+              onClick={() => navigate('/login', { 
+                state: { from: intendedDestination } 
+              })}
+              className="text-brand-orange font-semibold hover:underline"
+            >
+              Login
+            </button>
+          </p>
+          <button 
+            onClick={() => navigate('/')} 
+            className="text-sm text-brand-brown font-medium hover:underline"
           >
-            Login
+            Back to Home
           </button>
         </div>
       </div>

@@ -19,7 +19,7 @@ const Gifticon = () => {
   return (
     <div className="min-h-screen bg-brand-background text-brand-textPrimary">
       {/* Background */}
-      <div
+      <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-10 pointer-events-none"
         style={{ backgroundImage: "url('/images/background-img.png')" }}
       />
@@ -28,13 +28,13 @@ const Gifticon = () => {
       <div className="relative bg-brand-background/95 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-brand-brown/20">
         <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 tablet:px-8 laptop:px-12 desktop:px-16 py-2 xs:py-3 sm:py-4 flex items-center justify-between gap-2 xs:gap-3">
           <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
-            <button
+              <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
-            >
+              >
               <ArrowLeft className="w-4 h-4 xs:w-5 xs:h-5" />
               <span className="hidden sm:inline text-xs xs:text-sm">Back</span>
-            </button>
+              </button>
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <img 
               src="/images/logo.png" 
@@ -45,8 +45,8 @@ const Gifticon = () => {
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">
               Gifticon
-            </h1>
-          </div>
+              </h1>
+            </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => navigate('/network')}
@@ -95,7 +95,7 @@ const Gifticon = () => {
         {/* Only mount the active tab */}
         {activeTab === 'available' && <AvailableGiftsTab />}
         {activeTab === 'purchased' && <PurchasedGiftsTab />}
-      </div>
+        </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Mail, Phone, Building2, Calendar } from 'lucide-react';
-import { cn } from '../utils/helpers';
+import { Mail, Phone, Building2, Briefcase } from 'lucide-react';
+import { cn, normalizePhoneNumber } from '../utils/helpers';
 
 const CardPreview = ({ card, onDelete, className = '' }) => {
   return (
@@ -28,24 +28,22 @@ const CardPreview = ({ card, onDelete, className = '' }) => {
               <span className="text-xs xs:text-sm truncate">{card.company}</span>
             </div>
           )}
-          {card.email && (
+          {card.position && (
             <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
-              <Mail className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
-              <span className="text-xs xs:text-sm truncate">{card.email}</span>
+              <Briefcase className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
+              <span className="text-xs xs:text-sm truncate">{card.position}</span>
             </div>
           )}
           {card.phone && (
             <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
               <Phone className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
-              <span className="text-xs xs:text-sm truncate">{card.phone}</span>
+              <span className="text-xs xs:text-sm truncate">{normalizePhoneNumber(card.phone)}</span>
             </div>
           )}
-          {card.date && (
-            <div className="flex items-center gap-2 text-brand-textSecondary mt-2">
-              <Calendar className="w-3 h-3 flex-shrink-0" />
-              <span className="text-xs">
-                {new Date(card.date).toLocaleDateString()}
-              </span>
+          {card.email && (
+            <div className="flex items-center gap-2 text-brand-textSecondary mb-1">
+              <Mail className="w-3 h-3 xs:w-4 xs:h-4 flex-shrink-0" />
+              <span className="text-xs xs:text-sm truncate">{card.email}</span>
             </div>
           )}
         </div>

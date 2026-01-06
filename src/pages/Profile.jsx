@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ArrowLeft, User, Mail, LogOut, Shield, Calendar, CreditCard, Plus, Building2, Phone, MapPin, Briefcase, Edit2 } from 'lucide-react';
 import { isAuthenticated, logout, getTokenPayload, getUserEmail } from '../utils/auth';
+import { normalizePhoneNumber } from '../utils/helpers';
 import ConfirmModal from '../components/ConfirmModal';
 import AddCardModal from '../components/AddCardModal';
 import { cardAPI } from '../utils/api';
@@ -56,11 +57,20 @@ const Profile = () => {
       const allCards = response?.data?.data || [];
       
       // Find card where email matches user's email
-      const userCard = allCards.find(card => 
-        card.email && card.email.toLowerCase() === userEmail.toLowerCase()
-      );
-      
-      setMyCard(userCard || null);
+          const userCard = allCards.find(card => 
+            card.email && card.email.toLowerCase() === userEmail.toLowerCase()
+          );
+          
+          // Normalize phone numbers when setting user card
+          if (userCard) {
+            setMyCard({
+              ...userCard,
+              phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
+              mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
+            });
+          } else {
+            setMyCard(null);
+          }
       
       if (userCard) {
         console.log('✅ Found user card:', userCard);
@@ -289,15 +299,6 @@ const Profile = () => {
                       </div>
                     )}
 
-                    {myCard.department && (
-                      <div>
-                        <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Department
-                        </label>
-                        <p className="text-sm text-brand-brown">{myCard.department}</p>
-                      </div>
-                    )}
-
                     {(myCard.phone || myCard.mobile) && (
                       <div>
                         <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
@@ -305,19 +306,21 @@ const Profile = () => {
                         </label>
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4 text-brand-textSecondary" />
-                          <p className="text-sm text-brand-brown">{myCard.phone || myCard.mobile}</p>
+                          <p className="text-sm text-brand-brown">{normalizePhoneNumber(myCard.phone || myCard.mobile)}</p>
                         </div>
                       </div>
                     )}
 
-                    {myCard.companyAddress && (
-                      <div className="md:col-span-2">
+                    {myCard.email && (
+                      <div>
                         <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Address
+                          Email
                         </label>
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-brand-textSecondary mt-0.5" />
-                          <p className="text-sm text-brand-brown">{myCard.companyAddress}</p>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-brand-textSecondary" />
+                          <a href={`mailto:${myCard.email}`} className="text-sm text-brand-orange hover:underline">
+                            {myCard.email}
+                          </a>
                         </div>
                       </div>
                     )}

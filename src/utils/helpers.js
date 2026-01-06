@@ -10,7 +10,57 @@ export function generateQRCode(data) {
   )}%3C/text%3E%3C/svg%3E`;
 }
 
-// Format phone number
+/**
+ * Normalize phone number for global use
+ * Removes dots and normalizes spaces while preserving country code format
+ * Examples:
+ *   +82 10. 3652. 8758 → +82 10 3652 8758
+ *   +65 8520 0282 → +65 8520 0282
+ *   +1 234.567.8900 → +1 234 567 8900
+ * @param {string} phone - Phone number string
+ * @returns {string} Normalized phone number
+ */
+export function normalizePhoneNumber(phone) {
+  // Handle edge cases: null, undefined, empty string, or non-string values
+  if (!phone || typeof phone !== 'string') return phone;
+  
+  // Handle placeholder values like '-' - return as-is
+  if (phone.trim() === '-') return phone;
+  
+  // Step 1: Remove all dots (universal - dots are not standard in phone numbers)
+  let normalized = phone.replace(/\./g, '');
+  
+  // Step 2: Normalize spaces (remove multiple spaces, keep single spaces)
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  // Step 3: Extract and format using universal phone pattern
+  // Match: + followed by country code (1-4 digits), then the number part
+  const match = normalized.match(/^\+(\d{1,4})\s*(.+)$/);
+  
+  if (match) {
+    const countryCode = match[1];
+    let numberPart = match[2].trim();
+    
+    // Fix malformed country codes where space splits the code (e.g., "+8 2" → "+82")
+    // Only fix if country code appears to be split (single digit + space + digit at start)
+    if (countryCode.length === 1 && /^\d\s/.test(numberPart)) {
+      const nextDigit = numberPart.match(/^(\d)/);
+      if (nextDigit) {
+        const fixedCountryCode = countryCode + nextDigit[1];
+        numberPart = numberPart.substring(1).trim();
+        return `+${fixedCountryCode} ${numberPart}`;
+      }
+    }
+    
+    // Ensure single space between country code and number part
+    return `+${countryCode} ${numberPart}`;
+  }
+  
+  // If pattern doesn't match, return cleaned version (dots removed, spaces normalized)
+  return normalized;
+}
+
+// Format phone number (legacy function, kept for backward compatibility)
 export function formatPhoneNumber(phone) {
   const cleaned = phone.replace(/\D/g, '');
 

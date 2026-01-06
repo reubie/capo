@@ -5,9 +5,46 @@ import { getToken, isTokenExpired, hasValidToken, hasJustLoggedOut, clearJustLog
 const Landing = () => {
   const navigate = useNavigate();
   const [hoveredSide, setHoveredSide] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Check authentication state on mount and when it changes
   useEffect(() => {
     document.title = 'Show you care - Gifticon & Network';
+    
+    // Initial check
+    const checkAuth = () => {
+      setIsAuthenticated(hasValidToken());
+    };
+    
+    checkAuth();
+
+    // Listen for storage changes (login/logout in other tabs or same tab)
+    const handleStorageChange = (e) => {
+      if (e.key === 'token' || e.key === null) {
+        // Token was added, removed, or localStorage was cleared
+        checkAuth();
+      }
+    };
+
+    // Listen for storage events (cross-tab updates)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events (same-tab updates)
+    // This will be triggered when login/logout happens in the same tab
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+    
+    window.addEventListener('auth-state-changed', handleAuthChange);
+
+    // Check periodically for token expiration (every 30 seconds)
+    const intervalId = setInterval(checkAuth, 30000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth-state-changed', handleAuthChange);
+      clearInterval(intervalId);
+    };
   }, []);
 
   /**
@@ -86,31 +123,33 @@ const Landing = () => {
         </button>
       </div>
 
-      {/* Top Right Navigation */}
-      <div className="absolute top-0 right-0 z-50 flex items-center p-2 xs:p-3 sm:p-4 md:p-5 tablet:p-6 laptop:p-8 gap-1.5 xs:gap-2 sm:gap-3 flex-shrink-0">
-        <button
-          onClick={() => navigate('/register')}
-          className="bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors whitespace-nowrap flex items-center"
-          style={{
-            padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
-            fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
-            lineHeight: '1.5',
-          }}
-        >
-          Register
-        </button>
-        <button
-          onClick={() => navigate('/login')}
-          className="bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors whitespace-nowrap flex items-center"
-          style={{
-            padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
-            fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
-            lineHeight: '1.5',
-          }}
-        >
-          Login
-        </button>
-      </div>
+      {/* Top Right Navigation - Only show if user is not authenticated */}
+      {!isAuthenticated && (
+        <div className="absolute top-0 right-0 z-50 flex items-center p-2 xs:p-3 sm:p-4 md:p-5 tablet:p-6 laptop:p-8 gap-1.5 xs:gap-2 sm:gap-3 flex-shrink-0">
+          <button
+            onClick={() => navigate('/register')}
+            className="bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors whitespace-nowrap flex items-center"
+            style={{
+              padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
+              fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
+              lineHeight: '1.5',
+            }}
+          >
+            Register
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors whitespace-nowrap flex items-center"
+            style={{
+              padding: 'clamp(0.375rem, 1.5vw, 0.75rem) clamp(0.5rem, 2vw, 1rem)',
+              fontSize: 'clamp(0.625rem, 2.5vw, 1rem)',
+              lineHeight: '1.5',
+            }}
+          >
+            Login
+          </button>
+        </div>
+      )}
 
       {/* Split Container - Left and Right Clickable Areas */}
       <div className="relative h-screen w-full overflow-hidden">

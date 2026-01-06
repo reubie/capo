@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
-import { validateEmail } from '../utils/helpers';
+import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
 import { compressBusinessCardImage } from '../utils/imageCompression';
 
 const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
@@ -266,11 +266,18 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   // Handle form input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Normalize phone numbers when user types
+    let normalizedValue = value;
+    if (name === 'phone' || name === 'mobile') {
+      normalizedValue = normalizePhoneNumber(value);
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: normalizedValue }));
     setTouchedFields(prev => ({ ...prev, [name]: true }));
 
     // Validate on change
-    validateField(name, value);
+    validateField(name, normalizedValue);
   };
 
   // Validate individual field
@@ -416,8 +423,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       companyName: formData.companyName.trim(),
       department: toNullIfEmpty(formData.department), // Optional: send null if empty
       position: formData.position.trim(),
-      phone: formData.phone.trim(),
-      mobile: formData.mobile.trim(),
+      phone: normalizePhoneNumber(formData.phone.trim()),
+      mobile: normalizePhoneNumber(formData.mobile.trim()),
       email: formData.email.trim(),
       companyAddress: formData.companyAddress.trim(),
       linkedIn: toNullIfEmpty(formData.linkedIn), // Optional: send null if empty

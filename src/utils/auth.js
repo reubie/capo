@@ -28,6 +28,9 @@ export const getToken = () => {
 export const setToken = (token) => {
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
+    // Dispatch custom event to notify components of auth state change
+    // This allows Landing page to update immediately when user logs in
+    window.dispatchEvent(new Event('auth-state-changed'));
   }
 };
 
@@ -37,6 +40,9 @@ export const setToken = (token) => {
 export const removeToken = () => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_EMAIL_KEY);
+  // Dispatch custom event to notify components of auth state change
+  // This allows Landing page to update immediately when token is removed
+  window.dispatchEvent(new Event('auth-state-changed'));
 };
 
 /**
@@ -80,12 +86,14 @@ export const isAuthenticated = () => {
  * Clears token and redirects to landing page
  * Note: Uses window.location.href for hard redirect to ensure clean state
  * Sets a session flag to indicate user just logged out (has an account)
+ * Dispatches custom event to notify other components of auth state change
  */
 export const logout = () => {
-  removeToken();
+  removeToken(); // This already dispatches 'auth-state-changed' event
   // Set flag to indicate user just logged out (they have an account)
   // This helps smart navigation send them to Login instead of Register
   sessionStorage.setItem(JUST_LOGGED_OUT_KEY, 'true');
+  
   window.location.href = '/';
 };
 
