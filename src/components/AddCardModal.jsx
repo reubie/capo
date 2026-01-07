@@ -534,22 +534,19 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     console.log('🔍 Department value type:', typeof cardJsonData.department, 'value:', cardJsonData.department);
     console.log('🔍 OCR Text: (empty string - backend database has length limits)');
 
-    // Validate that file is provided (required by API)
+    // Validate that file is provided for upload tab
     if (!cardImage && activeTab === 'upload') {
       toast.error('Please upload an image file. The API requires a file for card registration.');
       return;
     }
 
-    // For manual entry, file might not be required, but API schema shows it's required
-    // If no file in manual mode, we'll let the backend handle the validation
-    if (!cardImage && activeTab === 'manual') {
-      console.warn('⚠️ Manual entry without file - API may reject this');
-    }
-
+    // For manual entry, we can proceed without a file
+    // The parent component will handle sending empty string or null for the file field
     try {
       // Pass both the file and card data to parent
+      // For manual entry, file will be null/undefined, parent should handle it
       await onSave({
-        file: cardImage, // Original file (null if not provided)
+        file: cardImage || null, // null for manual entry without image
         cardData: cardJsonData // JSON data without image
       });
     } catch (error) {

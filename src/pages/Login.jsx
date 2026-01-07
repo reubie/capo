@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
-import { validateEmail, handleBackendResponse, getErrorMessage } from '../utils/helpers';
-import { setToken, resetAuth, setUserEmail, clearJustLoggedOutFlag } from '../utils/auth';
+import { handleBackendResponse, getErrorMessage } from '../utils/helpers';
+import { setToken, resetAuth, clearJustLoggedOutFlag } from '../utils/auth';
+import PhoneInput, { validatePhoneWithCountry, formatPhoneForBackend } from '../components/PhoneInput';
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Determine redirect after login: use location.state.from if exists, else default
   const from = location.state?.from || '/gifticon';
@@ -30,30 +32,37 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setPhoneError('');
 
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+    // Validate phone number
+    const phoneValidation = validatePhoneWithCountry(formData.phone);
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error);
+      setError(phoneValidation.error);
       return;
     }
 
-    if (!validateEmail(formData.email)) {
-      setError('Please enter a valid email address');
+    if (!formData.password) {
+      setError('Please enter your password');
       return;
     }
+
+    // Format phone number for backend (E.164 format)
+    const formattedPhone = formatPhoneForBackend(formData.phone);
 
     setLoading(true);
     try {
-      const response = await authAPI.login(formData);
+      const response = await authAPI.login({
+        phone: formattedPhone,
+        password: formData.password,
+      });
       const result = handleBackendResponse(response.data);
 
       if (result.success) {
         if (result.data?.accessToken) {
           setToken(result.data.accessToken); // store token centrally
         }
-        // Store user email for profile display
-        if (formData.email) {
-          setUserEmail(formData.email);
-        }
+        // Note: Phone is not stored separately as it can be retrieved from token payload if needed
         // Clear logout flag since user is now logged in
         clearJustLoggedOutFlag();
         // Redirect to the intended page
@@ -62,7 +71,17 @@ const Login = () => {
         setError(result.message || 'Login failed. Please try again.');
       }
     } catch (err) {
-      setError(getErrorMessage(err));
+      const res = err?.response;
+      const backendCode = res?.data?.code;
+      
+      // Handle specific error codes
+      if (backendCode === '400001') {
+        setError('Please fill in all required fields correctly.');
+      } else if (backendCode === '400004') {
+        setError('Phone number or password is incorrect.');
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -118,20 +137,22 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">
-              <Mail className="w-4 h-4" /> Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              placeholder="john@example.com"
-              value={formData.email}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
-              required
-            />
-          </div>
+          <PhoneInput
+            value={formData.phone}
+            onChange={(value) => {
+              setFormData((prev) => ({ ...prev, phone: value || '' }));
+              const validation = validatePhoneWithCountry(value);
+              setPhoneError(validation.isValid ? '' : validation.error);
+              if (validation.isValid) {
+                setError(''); // Clear general error if phone is now valid
+              }
+            }}
+            error={phoneError}
+            label="Phone Number"
+            placeholder="Enter your phone number"
+            required
+            disabled={loading}
+          />
 
           <div>
             <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">

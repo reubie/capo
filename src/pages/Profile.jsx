@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, Shield, Calendar, CreditCard, Plus, Building2, Phone, MapPin, Briefcase, Edit2 } from 'lucide-react';
-import { hasValidToken, logout, getTokenPayload, getUserEmail } from '../utils/auth';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2 } from 'lucide-react';
+import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
 import ConfirmModal from '../components/ConfirmModal';
 import AddCardModal from '../components/AddCardModal';
@@ -25,15 +25,14 @@ const Profile = () => {
 
     document.title = 'Show you care - Profile';
     
-    // Get user email from storage (set during login) or token payload
-    const storedEmail = getUserEmail();
+    // Get user info from token payload (only use actual data, no hardcoded fallbacks)
+    // Note: We only use data that will be updated by user via business card registration
     const payload = getTokenPayload();
     
     setUserInfo({
-      email: storedEmail || payload?.email || 'N/A',
-      name: payload?.name || payload?.sub || 'User',
-      role: payload?.role || 'N/A',
-      // Add other fields from token if available
+      phone: payload?.phone || null,
+      name: payload?.name || null, // Only use name from token, not sub (user ID)
+      // Removed role - will be managed through business card data
     });
 
     // Fetch user's business card
@@ -43,47 +42,50 @@ const Profile = () => {
   const loadMyCard = async () => {
     try {
       setLoadingCard(true);
-      // Get user's email to match against cards
-      const userEmail = getUserEmail() || getTokenPayload()?.email;
       
-      if (!userEmail) {
-        console.warn('No user email found, cannot identify user card');
-        setMyCard(null);
-        return;
+      // Fetch user's profile card using the dedicated endpoint
+      const response = await cardAPI.getMyProfile();
+      
+      // The API returns: { code: "200", message: "Success", data: { email, cardImageUrl, ... } }
+      const profileData = response?.data?.data;
+      
+      // Handle response structure (currently returns object, not array)
+      let userCard = null;
+      if (profileData && typeof profileData === 'object') {
+        if (Array.isArray(profileData) && profileData.length > 0) {
+          // If API returns array (future structure)
+          userCard = profileData[0];
+        } else if (!Array.isArray(profileData)) {
+          // Current structure: object with email and cardImageUrl
+          userCard = profileData;
+        }
       }
-
-      // Fetch all cards and filter to find user's own card
-      const response = await cardAPI.getCards();
-      const allCards = response?.data?.data || [];
       
-      // Find card where email matches user's email
-          const userCard = allCards.find(card => 
-            card.email && card.email.toLowerCase() === userEmail.toLowerCase()
-          );
-          
-          // Normalize phone numbers when setting user card
-          if (userCard) {
-            setMyCard({
-              ...userCard,
-              phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
-              mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
-            });
-          } else {
-            setMyCard(null);
-          }
-      
+      // Normalize phone numbers when setting user card (if they exist)
       if (userCard) {
-        console.log('✅ Found user card:', userCard);
+        setMyCard({
+          ...userCard,
+          // Normalize phone numbers if they exist (for future API updates)
+          phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
+          mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
+        });
+        console.log('✅ Loaded user profile card:', userCard);
       } else {
-        console.log('ℹ️ No card found for user email:', userEmail);
+        // No card registered yet
+        setMyCard(null);
+        console.log('ℹ️ No business card registered in profile');
       }
     } catch (err) {
       if (err.response?.status === 403) {
         toast.error('Session expired. Please log in again.');
         navigate('/login', { replace: true });
+      } else if (err.response?.status === 404) {
+        // 404 might mean no card registered yet - this is okay
+        setMyCard(null);
+        console.log('ℹ️ No business card found (404)');
       } else {
-        console.error('Error loading cards:', err);
-        // Don't show error toast - it's okay if user hasn't registered their card yet
+        console.error('Error loading profile card:', err);
+        // Don't show error toast for other errors - it's okay if user hasn't registered their card yet
         setMyCard(null);
       }
     } finally {
@@ -109,13 +111,14 @@ const Profile = () => {
       // Create FormData for multipart/form-data
       const formData = new FormData();
       
-      // Add the image file (required by API)
+      // Add the image file
+      // For manual entry, file might be null - send empty Blob as per user request
       if (file) {
         formData.append('file', file);
       } else {
-        toast.error('Please upload an image file for your business card.');
-        setUploading(false);
-        return;
+        // Manual entry without image - send empty Blob (FormData requires File/Blob, not string)
+        const emptyBlob = new Blob([], { type: 'application/octet-stream' });
+        formData.append('file', emptyBlob, '');
       }
       
       // Add card data as JSON string
@@ -124,9 +127,15 @@ const Profile = () => {
       
       // Send to my-card-register endpoint
       await cardAPI.registerMyBusinessCard(formData);
+      
+      // Close modal first
       setShowMyCardModal(false);
+      
+      // Show success message
       toast.success('Your business card has been registered successfully! 🎉');
-      // Refresh the card data to display it
+      
+      // Refresh the card data from the profile endpoint to display it
+      // This ensures we show the latest data from the backend
       await loadMyCard();
     } catch (err) {
       const response = err?.response;
@@ -194,55 +203,34 @@ const Profile = () => {
               <User className="w-12 h-12 xs:w-14 xs:h-14 text-brand-orange" />
             </div>
             
-            <p className="text-2xl xs:text-3xl font-bold text-brand-brown">
-              {userInfo?.email || 'N/A'}
+            <p className="text-xl xs:text-2xl font-bold text-brand-textSecondary">
+              Welcome!
             </p>
+            
+            {/* Name - Show below Welcome: prioritize business card name, fallback to token name */}
+            {(myCard?.cardOwnerName || userInfo?.name) && (
+              <p className="text-2xl xs:text-3xl font-bold text-brand-brown text-center mt-2">
+                {myCard?.cardOwnerName || userInfo?.name}
+              </p>
+            )}
           </div>
 
-          {/* User Information */}
-          <div className="space-y-4 mb-6">
-            <div className="flex items-start gap-4 p-4 bg-white rounded-lg border border-brand-brown/10">
-              <div className="p-2 bg-brand-orange/10 rounded-lg">
-                <Mail className="w-5 h-5 text-brand-orange" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                  Email Address
-                </label>
-                <p className="text-base text-brand-brown break-words">
-                  {userInfo?.email || 'N/A'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 p-4 bg-white rounded-lg border border-brand-brown/10">
-              <div className="p-2 bg-brand-orange/10 rounded-lg">
-                <Shield className="w-5 h-5 text-brand-orange" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                  Account Type
-                </label>
-                <p className="text-base text-brand-brown">
-                  {userInfo?.role || 'N/A'}
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* My Business Card Section */}
           <div className="mb-6 pb-6 border-b border-brand-brown/20">
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider">
+              <h2 className="text-xl font-bold text-brand-brown flex items-center gap-2">
+                <CreditCard className="w-6 h-6 text-brand-orange" />
                 My Business Card
-              </label>
+              </h2>
               {myCard && (
                 <button
                   onClick={() => setShowMyCardModal(true)}
                   className="px-3 py-1.5 text-xs bg-brand-orange/10 text-brand-orange rounded-lg font-medium hover:bg-brand-orange/20 transition-colors flex items-center gap-1.5"
+                  title="Update your business card"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
-                  Edit
+                  Update
                 </button>
               )}
             </div>
@@ -264,63 +252,70 @@ const Profile = () => {
                   </div>
                 )}
 
-                {/* Card Details */}
-                <div className="p-4 space-y-3">
-                  {myCard.cardOwnerName && (
-                    <div>
-                      <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                        Name
-                      </label>
-                      <p className="text-base font-bold text-brand-brown">{myCard.cardOwnerName}</p>
-                    </div>
-                  )}
+                {/* Card Details - Contact Information */}
+                <div className="p-4">
+                  <h4 className="text-sm font-semibold text-brand-textSecondary uppercase tracking-wider mb-4">
+                    Contact Information
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    {myCard.email && (
+                      <div className="flex items-start gap-3">
+                        <Mail className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Email
+                          </label>
+                          <a 
+                            href={`mailto:${myCard.email}`} 
+                            className="text-sm text-brand-orange hover:underline break-all"
+                          >
+                            {myCard.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myCard.companyName && (
-                      <div>
-                        <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Company
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-brand-textSecondary" />
-                          <p className="text-sm text-brand-brown">{myCard.companyName}</p>
+                      <div className="flex items-start gap-3">
+                        <Building2 className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Company
+                          </label>
+                          <p className="text-sm text-brand-brown">
+                            {myCard.companyName}
+                          </p>
                         </div>
                       </div>
                     )}
 
                     {myCard.position && (
-                      <div>
-                        <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Position
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-4 h-4 text-brand-textSecondary" />
-                          <p className="text-sm text-brand-brown">{myCard.position}</p>
+                      <div className="flex items-start gap-3">
+                        <Briefcase className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Position
+                          </label>
+                          <p className="text-sm text-brand-brown">
+                            {myCard.position}
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {(myCard.phone || myCard.mobile) && (
-                      <div>
-                        <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Phone
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-brand-textSecondary" />
-                          <p className="text-sm text-brand-brown">{normalizePhoneNumber(myCard.phone || myCard.mobile)}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {myCard.email && (
-                      <div>
-                        <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                          Email
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-brand-textSecondary" />
-                          <a href={`mailto:${myCard.email}`} className="text-sm text-brand-orange hover:underline">
-                            {myCard.email}
+                    {myCard.mobile && (
+                      <div className="flex items-start gap-3">
+                        <Phone className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Mobile
+                          </label>
+                          <a 
+                            href={`tel:${myCard.mobile.replace(/\s/g, '')}`}
+                            className="text-sm text-brand-brown hover:text-brand-orange transition-colors"
+                          >
+                            {normalizePhoneNumber(myCard.mobile)}
                           </a>
                         </div>
                       </div>
@@ -329,22 +324,57 @@ const Profile = () => {
                 </div>
               </div>
             ) : (
-              // Show register button if no card
-              <div className="flex items-start gap-4 p-4 bg-white rounded-lg border border-brand-brown/10">
-                <div className="p-2 bg-brand-orange/10 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-brand-orange" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-brand-textSecondary mb-3">
-                    Register your own business card to share with your network.
+              // Show prominent call-to-action if no card (new user scenario)
+              <div className="bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 rounded-xl border-2 border-brand-orange/30 p-6 xs:p-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 xs:w-20 xs:h-20 rounded-full bg-brand-orange/20 flex items-center justify-center mb-4">
+                    <CreditCard className="w-8 h-8 xs:w-10 xs:h-10 text-brand-orange" />
+                  </div>
+                  
+                  <h3 className="text-xl xs:text-2xl font-bold text-brand-brown mb-2">
+                    Complete Your Profile
+                  </h3>
+                  
+                  <p className="text-sm xs:text-base text-brand-textSecondary mb-6 max-w-md">
+                    Register your business card to share your contact information with your network. 
+                    You can upload a photo of your card or enter the details manually.
                   </p>
-                  <button
-                    onClick={() => setShowMyCardModal(true)}
-                    className="px-4 py-2 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center gap-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Register My Business Card
-                  </button>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => setShowMyCardModal(true)}
+                      className="px-6 py-3 bg-brand-orange text-brand-textOnDark rounded-lg font-semibold hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2 text-base shadow-lg"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Register My Business Card
+                    </button>
+                  </div>
+                  
+                  <div className="mt-6 pt-6 border-t border-brand-orange/20 w-full">
+                    <p className="text-xs text-brand-textSecondary mb-3">
+                      What you can do:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-brand-orange">1</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-brand-brown">Upload Card Photo</p>
+                          <p className="text-xs text-brand-textSecondary">Take a photo and we'll extract the details automatically</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-brand-orange">2</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-brand-brown">Manual Entry</p>
+                          <p className="text-xs text-brand-textSecondary">Enter your business card details manually</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

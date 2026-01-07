@@ -80,6 +80,20 @@ export function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// Validate phone number
+// Accepts formats like: 01011112222, +821011112222, +82 10 1111 2222
+// Returns true if phone is valid (at least 10 digits)
+export function validatePhone(phone) {
+  if (!phone || typeof phone !== 'string') return false;
+  
+  // Remove all non-digit characters to check length
+  const digitsOnly = phone.replace(/\D/g, '');
+  
+  // Phone should have at least 10 digits (minimum for most countries)
+  // Maximum 15 digits (E.164 standard)
+  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+}
+
 // Validate name (single or multiple words, letters only)
 export function validateName(name) {
   return /^[A-Za-z\s]+$/.test(name.trim());

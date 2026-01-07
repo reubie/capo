@@ -139,15 +139,16 @@ const Network = () => {
       // Create FormData for multipart/form-data
       const formData = new FormData();
       
-      // Add the image file (required by API)
+      // Add the image file
+      // For manual entry, file might be null - send empty Blob as per user request
       if (file) {
         formData.append('file', file);
         console.log('📎 Image file:', file.name, 'Size:', (file.size / 1024).toFixed(2), 'KB', 'Type:', file.type);
       } else {
-        // For manual entry without image, create an empty file or handle accordingly
-        // Note: API requires file field, so we might need to send a placeholder
-        // Check with backend team if manual entry should skip file requirement
-        console.warn('⚠️ No file provided - manual entry mode');
+        // Manual entry without image - send empty Blob (FormData requires File/Blob, not string)
+        const emptyBlob = new Blob([], { type: 'application/octet-stream' });
+        formData.append('file', emptyBlob, '');
+        console.log('📎 Manual entry mode - sending empty Blob for file field');
       }
       
       // Add card data as JSON string

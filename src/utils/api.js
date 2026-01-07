@@ -186,6 +186,11 @@ export const cardAPI = {
       meta: { loadingText: 'Fetching cards...' },
     }),
 
+  getMyProfile: () =>
+    api.get('/api/user/my-profile', {
+      meta: { loadingText: 'Fetching your profile...' },
+    }),
+
   deleteCard: (id) =>
     api.delete(`/api/card/${id}`, {
       meta: { loadingText: 'Deleting card...' },

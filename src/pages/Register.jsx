@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { User, Lock } from 'lucide-react';
 import { authAPI } from '../utils/api';
-import { setToken, setUserEmail, clearJustLoggedOutFlag } from '../utils/auth';
+import { setToken, clearJustLoggedOutFlag } from '../utils/auth';
 import {
-  validateEmail,
   validatePassword,
   getPasswordStrength,
   validateName,
-  cn,
   handleBackendResponse,
 } from '../utils/helpers';
+import PhoneInput, { validatePhoneWithCountry, formatPhoneForBackend } from '../components/PhoneInput';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -21,9 +21,8 @@ const Register = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    phone: '',
     password: '',
-    role: '',
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -51,10 +50,11 @@ const Register = () => {
       }));
     }
 
-    if (name === 'email') {
+    if (name === 'phone') {
+      const validation = validatePhoneWithCountry(value);
       setFieldErrors((prev) => ({
         ...prev,
-        email: validateEmail(value) ? '' : 'Invalid email address',
+        phone: validation.isValid ? '' : validation.error,
       }));
     }
 
@@ -78,9 +78,6 @@ const Register = () => {
     }
   };
 
-  const handleRoleSelect = (role) => {
-    setFormData((prev) => ({ ...prev, role }));
-  };
 
   /* =========================
      SUBMIT
@@ -88,16 +85,30 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.role) {
-      toast.error('Please select an account type');
+    // Validate all fields
+    const nameError = validateName(formData.name) ? '' : 'Name should contain only letters and spaces';
+    const phoneValidation = validatePhoneWithCountry(formData.phone);
+    const passwordValidation = validatePassword(formData.password);
+
+    setFieldErrors({
+      name: nameError,
+      phone: phoneValidation.isValid ? '' : phoneValidation.error,
+      password: passwordValidation.isValid ? '' : 'Password does not meet all requirements',
+    });
+
+    if (nameError || !phoneValidation.isValid || !passwordValidation.isValid) {
+      toast.error('Please fill in all fields correctly');
       return;
     }
 
+    // Format phone number for backend (E.164 format)
+    const formattedPhone = formatPhoneForBackend(formData.phone);
+
     const payload = {
       name: formData.name.trim(),
-      email: formData.email.toLowerCase().trim(),
+      phone: formattedPhone,
       password: formData.password,
-      role: formData.role.toUpperCase(),
+      role: 'USER', // Default role
     };
 
     console.group('📝 REGISTER REQUEST');
@@ -123,11 +134,9 @@ const Register = () => {
 
         // Check if registration response includes an access token (auto-login)
         if (result.data?.accessToken) {
-          // Auto-login: Store token and user email
+          // Auto-login: Store token
           setToken(result.data.accessToken);
-          if (formData.email) {
-            setUserEmail(formData.email);
-          }
+          // Note: Phone is not stored separately as it can be retrieved from token payload if needed
           // Clear logout flag since user is now logged in
           clearJustLoggedOutFlag();
           
@@ -165,7 +174,7 @@ const Register = () => {
             toast.error('Please fill in all required fields correctly.');
             break;
           case '400003':
-            toast.error('This email is already registered.');
+            toast.error('This phone number is already registered.');
             break;
           default:
             toast.error(res.data?.message || 'Registration failed.');
@@ -247,36 +256,15 @@ const Register = () => {
           </p>
         </div>
 
-        {/* ROLE SELECTION */}
-        <div className="mb-4">
-          <label className="block text-brand-brown font-medium mb-2 text-sm">
-            Account Type
-          </label>
-          <div className="flex gap-2">
-            {['user', 'vendor', 'admin'].map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => handleRoleSelect(role)}
-                className={cn(
-                  'flex-1 py-2 rounded-lg border text-sm font-medium',
-                  formData.role === role
-                    ? 'bg-brand-orange text-white border-brand-orange'
-                    : 'bg-white text-brand-brown border-brand-brown/20'
-                )}
-              >
-                {role.charAt(0).toUpperCase() + role.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">
+              <User className="w-4 h-4" /> Full Name
+            </label>
             <input
               name="name"
-              placeholder="Full Name"
+              placeholder="Enter your full name"
               value={formData.name}
               onChange={handleInputChange}
               className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
@@ -288,26 +276,30 @@ const Register = () => {
             )}
           </div>
 
-          <div>
-            <input
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
-            />
-            {fieldErrors.email && (
-              <p className="text-red-500 text-sm mt-1">
-                {fieldErrors.email}
-              </p>
-            )}
-          </div>
+          <PhoneInput
+            value={formData.phone}
+            onChange={(value) => {
+              setFormData((prev) => ({ ...prev, phone: value || '' }));
+              const validation = validatePhoneWithCountry(value);
+              setFieldErrors((prev) => ({
+                ...prev,
+                phone: validation.isValid ? '' : validation.error,
+              }));
+            }}
+            error={fieldErrors.phone}
+            label="Phone Number"
+            placeholder="Enter your phone number"
+            required
+          />
 
           <div>
+            <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">
+              <Lock className="w-4 h-4" /> Password
+            </label>
             <input
               name="password"
               type="password"
-              placeholder="Password"
+              placeholder="Enter your password"
               value={formData.password}
               onChange={handleInputChange}
               className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
