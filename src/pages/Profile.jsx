@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Home, User, Mail, LogOut, Shield, Calendar, CreditCard, Plus, Building2, Phone, MapPin, Briefcase, Edit2 } from 'lucide-react';
-import { isAuthenticated, logout, getTokenPayload, getUserEmail } from '../utils/auth';
+import { hasValidToken, logout, getTokenPayload, getUserEmail } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
 import ConfirmModal from '../components/ConfirmModal';
 import AddCardModal from '../components/AddCardModal';
@@ -18,7 +18,7 @@ const Profile = () => {
   const [loadingCard, setLoadingCard] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!hasValidToken()) {
       navigate('/login', { replace: true, state: { from: '/profile' } });
       return;
     }
