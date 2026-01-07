@@ -28,7 +28,7 @@ const ErrorModal = ({
           <h3 className="text-2xl font-bold text-brand-brown mb-3">
             {title}
           </h3>
-          <p className="text-sm text-brand-textSecondary leading-relaxed">
+          <p className="text-sm text-brand-textSecondary leading-relaxed whitespace-pre-line">
             {message}
           </p>
         </div>

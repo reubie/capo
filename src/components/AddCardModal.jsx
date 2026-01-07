@@ -5,6 +5,7 @@ import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extrac
 import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
 import { compressBusinessCardImage } from '../utils/imageCompression';
 import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
+import ErrorModal from './ErrorModal';
 
 const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'manual'
@@ -14,6 +15,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const [processingCrop, setProcessingCrop] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
   const fileInputRef = useRef(null);
   const dragCounterRef = useRef(0);
   const processedImageRef = useRef(null);
@@ -90,6 +92,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       });
       setFieldErrors({});
       setTouchedFields({});
+      setErrorModal({ visible: false, title: '', message: '' });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -106,23 +109,46 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     try {
       const ocrText = await extractTextFromImage(cardImage);
       
+      // Log raw OCR text
+      console.group('📄 OCR Extraction Results');
+      console.log('Raw OCR Text:');
+      console.log(ocrText);
+      console.log('---');
+      
       // Extract data from OCR (ocrText is used internally but not stored in formData)
+      const extractedPhone = extractPhone(ocrText) || '';
+      const extractedMobile = extractMobile(ocrText) || '';
+      
       const extractedData = {
         cardOwnerName: extractName(ocrText) || '',
         companyName: extractCompany(ocrText) || '',
         department: extractDepartment(ocrText) || '',
         position: extractPosition(ocrText) || '',
-        phone: extractPhone(ocrText) || '',
-        mobile: extractMobile(ocrText) || '',
+        phone: extractedPhone,
+        // Use phone as fallback if mobile is not found
+        mobile: extractedMobile || extractedPhone,
         email: extractEmail(ocrText) || '',
         companyAddress: extractCompanyAddress(ocrText) || '',
         linkedIn: extractLinkedIn(ocrText) || '',
         cardImageUrl: cardPreview || ''
       };
+      
+      // Log extracted fields
+      console.log('Extracted Fields:');
+      console.log('  Name:', extractedData.cardOwnerName || '(not found)');
+      console.log('  Company:', extractedData.companyName || '(not found)');
+      console.log('  Position:', extractedData.position || '(not found)');
+      console.log('  Department:', extractedData.department || '(not found)');
+      console.log('  Phone:', extractedData.phone || '(not found)');
+      console.log('  Mobile:', extractedData.mobile || '(not found)');
+      console.log('  Email:', extractedData.email || '(not found)');
+      console.log('  Address:', extractedData.companyAddress || '(not found)');
+      console.log('  LinkedIn:', extractedData.linkedIn || '(not found)');
+      console.groupEnd();
 
       setFormData(extractedData);
       setShowForm(true);
-      toast.success('Card information extracted! Please review and fill in any missing fields.');
+      // No success toast - user can see the extracted data in the form
     } catch (error) {
       console.error('OCR Error:', error);
       toast.error('Failed to extract text from image. You can still enter the information manually.');
@@ -170,7 +196,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
   const processFile = async (file) => {
     if (!file) return false;
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 5 * 1080 * 1080) {
       toast.error('Image size should be less than 5MB');
       return false;
     }
@@ -185,23 +211,38 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     
     try {
       // Step 1: Auto-detect and crop business card (removes background)
-      toast.info('Detecting business card and removing background...', { autoClose: 2000 });
       const { croppedDataUrl, crop, warnings, quality } = await autoCropBusinessCard(file);
       
-      // Display warnings to user
-      if (warnings && warnings.length > 0) {
-        warnings.forEach(warning => {
-          if (warning.severity === 'error') {
-            toast.error(warning.message + (warning.suggestion ? ` ${warning.suggestion}` : ''), { 
-              autoClose: 5000 
-            });
-          } else if (warning.severity === 'warning') {
-            toast.warning(warning.message + (warning.suggestion ? ` ${warning.suggestion}` : ''), { 
-              autoClose: 4000 
-            });
-          } else {
-            toast.info(warning.message, { autoClose: 3000 });
+      // Check for critical errors that need modal display
+      const criticalErrors = warnings?.filter(w => w.severity === 'error') || [];
+      const hasCriticalErrors = criticalErrors.length > 0;
+      
+      // Display critical errors in modal (not toast)
+      if (hasCriticalErrors) {
+        const errorMessages = criticalErrors.map(w => {
+          let msg = w.message;
+          if (w.suggestion) {
+            msg += `\n\n${w.suggestion}`;
           }
+          return msg;
+        }).join('\n\n');
+        
+        setErrorModal({
+          visible: true,
+          title: 'Card Detection Issue',
+          message: errorMessages
+        });
+        
+        // Still proceed with the image, but user is aware of the issue
+      }
+      
+      // Display non-critical warnings as toasts (only if no critical errors)
+      if (!hasCriticalErrors && warnings && warnings.length > 0) {
+        warnings.forEach(warning => {
+          if (warning.severity === 'warning') {
+            toast.warning(warning.message, { autoClose: 4000 });
+          }
+          // Skip info messages - no need to show them
         });
       }
       
@@ -234,14 +275,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
         setFormData(prev => ({ ...prev, cardImageUrl: croppedDataUrl }));
       }
       
-      // Success message (only if no critical errors)
-      const hasErrors = warnings && warnings.some(w => w.severity === 'error');
-      if (!hasErrors) {
-        toast.success('Business card detected and background removed!', { autoClose: 2000 });
-      }
+      // No success message - user can see the result in the preview
     } catch (error) {
       console.error('Auto-crop error:', error);
-      toast.warning('Could not auto-detect card. Using full image.', { autoClose: 3000 });
+      
+      // Show error modal for detection failure
+      setErrorModal({
+        visible: true,
+        title: 'Card Detection Failed',
+        message: 'Could not automatically detect the business card in the image. The full image will be used instead.\n\nTips for better detection:\n• Ensure the card is clearly visible\n• Make sure all edges of the card are in the frame\n• Use good lighting\n• Hold the camera steady'
+      });
       
       // Fallback: use original image
       setCardImage(file);
@@ -781,6 +824,14 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
           </div>
         )}
       </div>
+      
+      {/* Error Modal for critical card detection issues */}
+      <ErrorModal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, title: '', message: '' })}
+        title={errorModal.title}
+        message={errorModal.message}
+      />
     </div>
   );
 

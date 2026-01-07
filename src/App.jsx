@@ -8,7 +8,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Gifticon from './pages/Gifticon';
 import Network from './pages/Network';
-import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -36,7 +35,7 @@ const LoaderBridge = () => {
 function App() {
   return (
     <LoadingProvider>
-    <Router>
+      <Router>
         {/* 🔄 Global Loader Overlay */}
         <GlobalLoader />
 
@@ -54,58 +53,49 @@ function App() {
           draggable
         />
 
-      <Routes>
+        <Routes>
           {/* Public landing page */}
-        <Route path="/" element={<Landing />} />
-        
+          <Route path="/" element={<Landing />} />
+
           {/* Public pages */}
-        <Route 
-          path="/login" 
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } 
-        />
-
-        <Route 
-          path="/register" 
-          element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
-          } 
-        />
-        
-          {/* Protected routes */}
-        <Route 
-          path="/gifticon" 
-          element={
-            <ProtectedRoute>
-              <Gifticon />
-            </ProtectedRoute>
-          } 
-        />
-
-        <Route 
-          path="/network" 
-          element={
-            <ProtectedRoute>
-              <Network />
-            </ProtectedRoute>
-          } 
-        />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
 
           <Route
-            path="/profile"
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route
+            path="/gifticon"
             element={
               <ProtectedRoute>
-                <Profile />
+                <Gifticon />
               </ProtectedRoute>
             }
           />
-      </Routes>
-    </Router>
+
+          <Route
+            path="/network"
+            element={
+              <ProtectedRoute>
+                <Network />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
     </LoadingProvider>
   );
 }

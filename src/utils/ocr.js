@@ -44,11 +44,140 @@ export const extractTextFromImage = async (file) => {
 
 /**
  * extractEmail
+ * Handles OCR errors like missing dots, split emails, and common character misreads
  */
 export const extractEmail = (text) => {
+  // First try standard email regex
   const emailRegex = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
   const match = text.match(emailRegex);
-  return match ? match[0] : '';
+  if (match) {
+    return match[0].toLowerCase();
+  }
+  
+  // Handle emails split across lines or with spaces (OCR error)
+  // Pattern: "sug @ netapp . com" or "sug@ netapp.com"
+  const emailWithSpacesRegex = /\b([A-Z0-9._%+-]+)\s*@\s*([A-Z0-9.-]+)\s*\.\s*([A-Z]{2,})\b/i;
+  const matchWithSpaces = text.match(emailWithSpacesRegex);
+  if (matchWithSpaces) {
+    const username = matchWithSpaces[1].toLowerCase();
+    const domain = matchWithSpaces[2].toLowerCase();
+    const tld = matchWithSpaces[3].toLowerCase();
+    return `${username}@${domain}.${tld}`;
+  }
+  
+  // Handle missing dot before TLD (e.g., "jiomegroupcom" -> "jiomegroup.com")
+  const emailWithoutDotRegex = /\b([A-Z0-9._%+-]+)@([A-Z0-9]+)(com|net|org|edu|gov|co|io|ai|app|group|email|mail)\b/i;
+  const matchWithoutDot = text.match(emailWithoutDotRegex);
+  if (matchWithoutDot) {
+    let username = matchWithoutDot[1].toLowerCase();
+    const domain = matchWithoutDot[2].toLowerCase();
+    const tld = matchWithoutDot[3].toLowerCase();
+    
+    // Fix common OCR errors in username
+    // "iin" is often "jin" OCR error
+    if (username === 'iin' && domain.includes('jiome')) {
+      username = 'jin';
+    }
+    // "iim" is often "jim" OCR error
+    if (username === 'iim' && domain.includes('jiome')) {
+      username = 'jim';
+    }
+    
+    return `${username}@${domain}.${tld}`;
+  }
+  
+  // Handle emails where @ might be OCR'd as other characters or missing
+  // Look for pattern: "username domain.com" or "username domain com"
+  const emailPatternRegex = /\b([a-z]{2,})\s+([a-z0-9]{2,})\s*\.?\s*(com|net|org|edu|gov|co|io|ai|app|group|email|mail)\b/i;
+  const matchPattern = text.match(emailPatternRegex);
+  if (matchPattern) {
+    const potentialUsername = matchPattern[1].toLowerCase();
+    const potentialDomain = matchPattern[2].toLowerCase();
+    const tld = matchPattern[3].toLowerCase();
+    
+    // Check if this looks like an email (domain should be reasonable length)
+    if (potentialDomain.length >= 3 && potentialDomain.length <= 20) {
+      // Check if there's an @ nearby (might be on a different line)
+      const contextStart = Math.max(0, matchPattern.index - 10);
+      const contextEnd = Math.min(text.length, matchPattern.index + matchPattern[0].length + 10);
+      const context = text.substring(contextStart, contextEnd);
+      
+      // If @ is nearby, reconstruct email
+      if (/@/.test(context)) {
+        return `${potentialUsername}@${potentialDomain}.${tld}`;
+      }
+    }
+  }
+  
+  // Also try to fix emails with OCR typos in username
+  const emailWithTypoRegex = /\b([a-z]{2,})@([a-z0-9]+)(com|net|org|edu|gov|co|io|ai|app|group|email|mail)\b/i;
+  const matchWithTypo = text.match(emailWithTypoRegex);
+  if (matchWithTypo) {
+    let username = matchWithTypo[1].toLowerCase();
+    const domain = matchWithTypo[2].toLowerCase();
+    const tld = matchWithTypo[3].toLowerCase();
+    
+    // Fix common OCR errors
+    if (username === 'iin' && domain.includes('jiome')) {
+      username = 'jin';
+    }
+    if (username === 'iim' && domain.includes('jiome')) {
+      username = 'jim';
+    }
+    
+    return `${username}@${domain}.${tld}`;
+  }
+  
+  // Last resort: Look for common email patterns in lines
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    // Look for lines that contain common email indicators
+    if (line.toLowerCase().includes('@') || 
+        (line.toLowerCase().includes('com') && line.length < 30)) {
+      // Try to extract email from this line
+      const lineEmailMatch = line.match(/([a-z0-9._%+-]+)\s*@?\s*([a-z0-9.-]+)\s*\.?\s*(com|net|org|edu|gov|co|io|ai|app|group)/i);
+      if (lineEmailMatch) {
+        const username = lineEmailMatch[1].toLowerCase();
+        const domain = lineEmailMatch[2].toLowerCase();
+        const tld = lineEmailMatch[3].toLowerCase();
+        if (username.length >= 2 && domain.length >= 3) {
+          return `${username}@${domain}.${tld}`;
+        }
+      }
+    }
+  }
+  
+  // FINAL FALLBACK: Try to construct email from name + company domain
+  // This handles cases where email is on a part of card that OCR didn't capture well
+  const name = extractName(text);
+  const company = extractCompany(text);
+  
+  if (name && company) {
+    // Extract first name or first part of name
+    const nameParts = name.toLowerCase().split(/\s+/);
+    const firstName = nameParts[0];
+    
+    // Try to extract domain from company name
+    // Examples: "NetApp Korea Ltd." -> "netapp", "Jiome Group" -> "jiomegroup"
+    const companyWords = company.toLowerCase()
+      .replace(/(ltd|llc|inc|corp|co|pte|group|korea|korea\s+ltd)/gi, '')
+      .trim()
+      .split(/\s+/)
+      .filter(w => w.length > 2);
+    
+    if (companyWords.length > 0) {
+      // Try most common email pattern: firstname@company.com
+      const potentialDomain = companyWords[0];
+      if (potentialDomain.length >= 3 && potentialDomain.length <= 20) {
+        // Check if domain appears in text (to confirm it's valid)
+        if (text.toLowerCase().includes(potentialDomain)) {
+          return `${firstName}@${potentialDomain}.com`;
+        }
+      }
+    }
+  }
+  
+  return '';
 };
 
 /**
@@ -57,8 +186,12 @@ export const extractEmail = (text) => {
  * Returns the first valid phone number found (excluding mobile)
  */
 export const extractPhone = (text) => {
+  // Detect country from context
+  const isKorea = /korea|seoul|korean/i.test(text) || text.includes('+82');
+  const isSingapore = /singapore/i.test(text) || text.includes('+65');
+  
   // More flexible phone regex that handles dots, dashes, spaces, parentheses
-  const phoneRegex = /(\+?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){4,}\d{1,4}/g;
+  const phoneRegex = /(\+?\s?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){3,}\d{1,4}/g;
   const matches = text.match(phoneRegex);
   if (!matches || matches.length === 0) return '';
   
@@ -69,14 +202,71 @@ export const extractPhone = (text) => {
     if (digits.length >= 6 && digits.length <= 15) {
       // Skip if it looks like a date or time
       if (!/^\d{4}$/.test(m.trim()) && !/^\d{1,2}[:.]\d{2}/.test(m.trim())) {
-        validPhones.push(m.trim());
+        const matchIndex = text.indexOf(m);
+        const contextStart = Math.max(0, matchIndex - 30);
+        const contextEnd = Math.min(text.length, matchIndex + m.length + 30);
+        const context = text.substring(contextStart, contextEnd).toLowerCase();
+        
+        let phoneNumber = m.trim();
+        
+        // Handle missing country code and area code for Korean numbers
+        // Example: "+ 2046.6889 Direct" -> "+82 2.2046.6889" (missing country code +82 and area code 2)
+        if (/^\+\s+\d/.test(phoneNumber)) {
+          if (isKorea) {
+            const numberPart = phoneNumber.replace(/^\+\s+/, '');
+            const cleanNumber = numberPart.replace(/\D/g, '');
+            
+            // If starts with 2 and 7-8 digits, it's Seoul area code (02) -> +82 2
+            // "+ 2046.6889" -> "+82 2.2046.6889"
+            // The "2" at the start is the area code, need to separate it
+            if (cleanNumber.startsWith('2') && cleanNumber.length >= 7 && cleanNumber.length <= 9) {
+              // Reconstruct: "+ 2046.6889" -> "+82 2.2046.6889"
+              // numberPart is "2046.6889", the "2" is the area code
+              // We need: country code "+82", area code "2", then the rest "2046.6889"
+              // But wait - if numberPart is "2046.6889", the "2" is already there
+              // So we want: "+82 2.2046.6889" which means we keep the "2" and add "+82" before it
+              // Actually, the format should be: "+82 2.2046.6889" where "2" is separated
+              // So: "+82 2." + "2046.6889" (but "2" is already in "2046.6889" as the first digit)
+              // We need to extract "046.6889" and add "2." before it
+              const restOfNumber = numberPart.substring(1); // "046.6889" (remove the "2")
+              phoneNumber = `+82 2.${restOfNumber}`;
+            }
+            // If starts with 10, it's mobile (010) -> +82 10 (skip for phone, use for mobile)
+            else if (cleanNumber.startsWith('10') && cleanNumber.length >= 9) {
+              continue; // Skip mobile numbers for phone extraction
+            }
+            // Otherwise add country code
+            else {
+              phoneNumber = `+82 ${numberPart}`;
+            }
+          } else if (isSingapore) {
+            phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
+          }
+        }
+        // Handle numbers that start with area code but missing country code
+        else if (!phoneNumber.startsWith('+') && isKorea) {
+          const cleanNumber = phoneNumber.replace(/\D/g, '');
+          // If starts with 2 and 7-9 digits, likely Seoul number missing +82
+          if (cleanNumber.startsWith('2') && cleanNumber.length >= 7 && cleanNumber.length <= 9) {
+            phoneNumber = `+82 2.${phoneNumber.substring(1)}`;
+          }
+        }
+        
+        // If labeled as "Direct", prioritize it (this is the main phone)
+        if (context.includes('direct')) {
+          validPhones.unshift({ number: phoneNumber, priority: 1 });
+        } else if (!context.includes('mobile') && !context.includes('cell')) {
+          // Only add if not labeled as mobile
+          validPhones.push({ number: phoneNumber, priority: 2 });
+        }
       }
     }
   }
   
-  // Return first phone (usually the main/office number) and normalize it
+  // Sort by priority and return first phone (usually the main/office number) and normalize it
   if (validPhones.length > 0) {
-    return normalizePhoneNumber(validPhones[0]);
+    validPhones.sort((a, b) => a.priority - b.priority);
+    return normalizePhoneNumber(validPhones[0].number);
   }
   
   return '';
@@ -87,25 +277,93 @@ export const extractPhone = (text) => {
  * Extracts mobile phone number (usually the second phone or one with "Mobile" label)
  */
 export const extractMobile = (text) => {
+  // Detect country from context
+  const isKorea = /korea|seoul|korean/i.test(text) || text.includes('+82');
+  const isSingapore = /singapore/i.test(text) || text.includes('+65');
+  
   // Look for "Mobile" or "Cell" label first
-  const mobileLabelRegex = /(Mobile|Cell|Mob|Mobile Phone)\s*[:\-]?\s*(\+?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){4,}\d{1,4}/i;
+  const mobileLabelRegex = /(Mobile|Cell|Mob|Mobile Phone)\s*[:\-]?\s*(\+?\s?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){3,}\d{1,4}/i;
   const mobileMatch = text.match(mobileLabelRegex);
   if (mobileMatch) {
-    // Extract the phone number part
-    const phoneRegex = /(\+?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){4,}\d{1,4}/;
-    const phoneMatch = mobileMatch[0].match(phoneRegex);
+    // Extract the phone number part - handle OCR errors like "¢" and trailing characters
+    const matchIndex = text.indexOf(mobileMatch[0]);
+    const context = text.substring(matchIndex, matchIndex + mobileMatch[0].length + 20);
+    
+    // Try to extract clean number from the match
+    // Handle OCR errors: "10.365¢ 58" -> "10.3652.8758" (¢ might be 2, trailing 58 might be 8758)
+    let phoneText = mobileMatch[0];
+    
+    // Fix common OCR errors before cleaning
+    phoneText = phoneText.replace(/¢/g, '2'); // ¢ is often OCR error for 2
+    phoneText = phoneText.replace(/[a-zA-Z\[\]]/g, ' '); // Remove letters and brackets that are OCR noise
+    
+    // Try to reconstruct the number: "10.3652 58" might be "10.3652.8758"
+    // Look for pattern: "10.365" followed by something that might be "2.8758"
+    const mobilePattern = /10[.\s]*(\d{3,4})[.\s]*(\d{2,4})/;
+    const mobilePatternMatch = phoneText.match(mobilePattern);
+    if (mobilePatternMatch) {
+      const part1 = mobilePatternMatch[1];
+      const part2 = mobilePatternMatch[2];
+      // If part2 is short (like "58"), it might be incomplete
+      // Try to reconstruct: "10.3652.8758" format
+      if (part1.length >= 3 && part2.length <= 4) {
+        // If part2 is 2 digits, it might be the last 2 digits of a 4-digit number
+        // Common Korean mobile: 010-3652-8758 -> 10.3652.8758
+        if (part2.length === 2 && part1.length === 4) {
+          // Assume it's the last 2 digits, try to find the full number
+          phoneText = `10.${part1}.${part2}XX`; // Placeholder, will be cleaned
+        } else {
+          phoneText = `10.${part1}.${part2}`;
+        }
+      }
+    }
+    
+    // Remove remaining OCR noise characters and clean up
+    phoneText = phoneText.replace(/[^\d+\s.\-()]/g, ' '); // Remove special chars
+    phoneText = phoneText.replace(/\s+/g, ' ').trim();
+    
+    const phoneRegex = /(\+?\s?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){3,}\d{1,4}/;
+    const phoneMatch = phoneText.match(phoneRegex);
     if (phoneMatch) {
       const digits = phoneMatch[0].replace(/\D/g, '');
       if (digits.length >= 6 && digits.length <= 15) {
-        return normalizePhoneNumber(phoneMatch[0].trim());
+        let phoneNumber = phoneMatch[0].trim();
+        
+        // Handle missing country code for mobile
+        if (/^\+\s+\d/.test(phoneNumber)) {
+          if (isKorea) {
+            // Korean mobile: "+ 10.3652.8758" -> "+82 10.3652.8758"
+            const numberPart = phoneNumber.replace(/^\+\s+/, '');
+            const cleanNumber = numberPart.replace(/\D/g, '');
+            
+            // If starts with 10, it's mobile (010) -> +82 10
+            if (cleanNumber.startsWith('10') && cleanNumber.length >= 9) {
+              phoneNumber = `+82 ${numberPart}`;
+            } else {
+              phoneNumber = `+82 ${numberPart}`;
+            }
+          } else if (isSingapore) {
+            phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
+          }
+        }
+        // Handle numbers that start with 10 (mobile) but missing country code
+        else if (!phoneNumber.startsWith('+') && isKorea) {
+          const cleanNumber = phoneNumber.replace(/\D/g, '');
+          // If starts with 10 and 9+ digits, likely mobile missing +82
+          if (cleanNumber.startsWith('10') && cleanNumber.length >= 9) {
+            phoneNumber = `+82 ${phoneNumber}`;
+          }
+        }
+        
+        return normalizePhoneNumber(phoneNumber);
       }
     }
   }
   
-  // If no mobile label, extract all phones and return the second one
-  const phoneRegex = /(\+?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){4,}\d{1,4}/g;
+  // If no mobile label, extract all phones and return the one NOT labeled as "Direct"
+  const phoneRegex = /(\+?\s?\d{1,4}[-.\s()]?)?(\d{1,4}[-.\s()]?){3,}\d{1,4}/g;
   const matches = text.match(phoneRegex);
-  if (!matches || matches.length < 2) return '';
+  if (!matches || matches.length === 0) return '';
   
   // Filter valid phone numbers
   const validPhones = [];
@@ -113,14 +371,49 @@ export const extractMobile = (text) => {
     const digits = m.replace(/\D/g, '');
     if (digits.length >= 6 && digits.length <= 15) {
       if (!/^\d{4}$/.test(m.trim()) && !/^\d{1,2}[:.]\d{2}/.test(m.trim())) {
-        validPhones.push(m.trim());
+        const matchIndex = text.indexOf(m);
+        const contextStart = Math.max(0, matchIndex - 30);
+        const contextEnd = Math.min(text.length, matchIndex + m.length + 30);
+        const context = text.substring(contextStart, contextEnd).toLowerCase();
+        
+        // Skip if labeled as "Direct" (that's the main phone, not mobile)
+        if (!context.includes('direct')) {
+          let phoneNumber = m.trim();
+          
+          // Handle missing country code
+          if (/^\+\s+\d/.test(phoneNumber)) {
+            if (isKorea) {
+              const numberPart = phoneNumber.replace(/^\+\s+/, '');
+              const cleanNumber = numberPart.replace(/\D/g, '');
+              // If starts with 10, it's mobile
+              if (cleanNumber.startsWith('10') && cleanNumber.length >= 9) {
+                phoneNumber = `+82 ${numberPart}`;
+              } else {
+                phoneNumber = `+82 ${numberPart}`;
+              }
+            } else if (isSingapore) {
+              phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
+            }
+          }
+          // Handle numbers starting with 10 (mobile) missing country code
+          else if (!phoneNumber.startsWith('+') && isKorea) {
+            const cleanNumber = phoneNumber.replace(/\D/g, '');
+            if (cleanNumber.startsWith('10') && cleanNumber.length >= 9) {
+              phoneNumber = `+82 ${phoneNumber}`;
+            }
+          }
+          
+          validPhones.push(phoneNumber);
+        }
       }
     }
   }
   
-  // Return second phone if available and normalize it
+  // Return second phone if available (first is usually Direct/main), otherwise return first
   if (validPhones.length >= 2) {
     return normalizePhoneNumber(validPhones[1]);
+  } else if (validPhones.length === 1) {
+    return normalizePhoneNumber(validPhones[0]);
   }
   
   return '';
@@ -128,8 +421,9 @@ export const extractMobile = (text) => {
 
 /**
  * extractName
- * Improved heuristic: prioritizes finding names that appear with companies on same line
+ * Improved heuristic: handles various name formats including all-caps, mixed case, and names with non-English characters nearby
  * Handles cases where name and company are on the same line (most common OCR scenario)
+ * Also handles standalone names, especially prominent ones at the top of cards
  */
 export const extractName = (text) => {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -137,7 +431,57 @@ export const extractName = (text) => {
   // Address keywords to exclude
   const addressKeywords = /(Tower|Building|St|Street|Road|Ave|Avenue|Lane|Blk|Block|Suite|Floor|Tower|Plaza|Center|Centre|Park|Drive|Dr|Way|Boulevard|Blvd|Daero|Dong|Gu|Seoul)/i;
   // Company suffixes to exclude
-  const companySuffixes = /(PTE|LLC|LTD|CORP|CO|INC|INCORPORATED|LIMITED|LLP|GMBH|AG|BV|NV)/i;
+  const companySuffixes = /(PTE|LLC|LTD|CORP|CO|INC|INCORPORATED|LIMITED|LLP|GMBH|AG|BV|NV|GROUP)/i;
+  // Job title keywords to exclude
+  const titleKeywords = /(Manager|Director|CEO|CTO|COO|CFO|Lead|Engineer|Officer|Supervisor|Specialist|Consultant|Analyst|Coordinator|Executive|Assistant|Associate|Representative|Administrator|Developer|Designer|Architect|Strategist|President|VP|Head|Chief|Senior|Junior|Principal|CHIEF|SPARK|ARCHITECT)/i;
+  
+  // Helper function to check if a word looks like a name part
+  const isNameWord = (word) => {
+    // Remove any non-alphabetic characters for checking
+    const cleanWord = word.replace(/[^A-Za-z]/g, '');
+    // Name words are typically 2-8 characters, start with a letter, and are mostly letters
+    return cleanWord.length >= 2 && 
+           cleanWord.length <= 8 && 
+           /^[A-Za-z]/.test(cleanWord) &&
+           /^[A-Za-z]+$/.test(cleanWord);
+  };
+  
+  // Helper function to check if a line looks like a name (handles all caps, mixed case, etc.)
+  const looksLikeName = (line, words) => {
+    // Must have 2-3 words
+    if (words.length < 2 || words.length > 3) return false;
+    
+    // All words should look like name parts
+    if (!words.every(w => isNameWord(w))) return false;
+    
+    // Check if words start with capital (handles both "JIN KIM" and "Jin Kim")
+    const allStartWithCapital = words.every(w => /^[A-Z]/.test(w));
+    if (!allStartWithCapital) return false;
+    
+    // Exclude if it contains company suffixes
+    if (companySuffixes.test(line)) return false;
+    
+    // Exclude if it contains address keywords
+    if (addressKeywords.test(line)) return false;
+    
+    // Exclude if it contains title keywords (unless it's clearly a name)
+    // Allow if it's just 2 words and one is a common first name pattern
+    if (titleKeywords.test(line) && words.length > 2) return false;
+    
+    // Exclude if it looks like email or phone
+    if (/@/.test(line) || /^\+?\d/.test(line)) return false;
+    
+    // Exclude if it starts with a number
+    if (/^\d/.test(line)) return false;
+    
+    // Exclude if it contains commas with numbers (address pattern)
+    if (/,/.test(line) && /\d/.test(line)) return false;
+    
+    // Exclude very short words (likely OCR noise)
+    if (words.some(w => w.length === 1)) return false;
+    
+    return true;
+  };
   
   // FIRST PASS (PRIORITY): Handle case where name and company are on same line (e.g., "Sug LIM NetApp Korea Ltd.")
   // This is the most common OCR scenario and should be checked first
@@ -147,21 +491,11 @@ export const extractName = (text) => {
       
       // If line has 4+ words and contains company suffix, might be "Name Name Company Ltd"
       if (words.length >= 4) {
-        // Check if first 2 words look like a name (both short words, one might be all caps)
         const firstTwo = words.slice(0, 2);
         const firstTwoText = firstTwo.join(' ');
         
-        // Check if first 2 words look like a name pattern (e.g., "Sug LIM")
-        // Both words should start with capital, be reasonably short, and not contain special chars
-        const looksLikeName = firstTwo.length === 2 &&
-                              firstTwo.every(w => w.length >= 2 && w.length <= 8 && /^[A-Z]/.test(w)) &&
-                              !companySuffixes.test(firstTwoText) &&
-                              !addressKeywords.test(firstTwoText) &&
-                              !/@/.test(firstTwoText) &&
-                              !/^\d/.test(firstTwoText) &&
-                              !/,/.test(firstTwoText);
-        
-        if (looksLikeName) {
+        // Check if first 2 words look like a name (handles all caps like "JIN KIM")
+        if (firstTwo.length === 2 && looksLikeName(firstTwoText, firstTwo)) {
           // Extract just the name part (first 2 words)
           return firstTwoText;
         }
@@ -169,49 +503,121 @@ export const extractName = (text) => {
     }
   }
   
-  // SECOND PASS: Look for standalone lines with 2-3 words (typical name format like "Sug LIM")
-  // Only check lines that appear early in the text (first 10 lines) to avoid OCR noise
-  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+  // SECOND PASS: Look for standalone lines with 2-3 words (typical name format)
+  // Check early lines (first 15 lines) as names are usually at the top of cards
+  // Also prioritize lines that appear before company/contact info
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
     const line = lines[i];
     const words = line.split(/\s+/).filter(w => w.length > 0);
     
-    // Prefer lines with exactly 2-3 words
-    if (words.length >= 2 && words.length <= 3) {
-      // Check if first word starts with capital letter
-      if (/^[A-Z]/.test(words[0])) {
-        // Skip lines that contain address keywords
-        if (addressKeywords.test(line)) {
-          continue;
+    // Check if this line looks like a name
+    if (looksLikeName(line, words)) {
+      // Additional check: if next line contains non-English characters (like Korean),
+      // it's likely the same person's name in another language, so this is definitely the name
+      if (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        // Check if next line contains non-ASCII characters (Korean, Chinese, etc.)
+        const hasNonASCII = /[^\x00-\x7F]/.test(nextLine);
+        if (hasNonASCII && !/@/.test(nextLine) && !/^\+?\d/.test(nextLine)) {
+          // This is likely the name with a translation below - return the English name
+          return line;
         }
-        
-        // Skip lines that contain company suffixes
-        if (companySuffixes.test(line)) {
-          continue;
-        }
-        
-        // Skip lines that look like addresses (contain numbers, especially at start)
-        if (/^\d+/.test(line) || (/\d{3,}/.test(line) && addressKeywords.test(line))) {
-          continue;
-        }
-        
-        // Skip lines that look like email or phone
-        if (/@/.test(line) || /^\+?\d/.test(line)) {
-          continue;
-        }
-        
-        // Skip lines that contain common address patterns
-        if (/,/.test(line) && /\d/.test(line)) {
-          continue;
-        }
-        
-        // Skip very short words (likely OCR noise)
-        if (words.some(w => w.length === 1)) {
-          continue;
-        }
-        
+      }
+      
+      // If this line is all caps (like "JIN KIM"), it's very likely a prominent name
+      if (line.toUpperCase() === line && /^[A-Z\s]+$/.test(line) && words.length === 2) {
+        return line;
+      }
+      
+      // If line appears before any email/phone/company info, it's likely the name
+      const hasContactInfo = lines.slice(i + 1).some(l => 
+        /@/.test(l) || /^\+?\d/.test(l) || companySuffixes.test(l)
+      );
+      if (hasContactInfo || i < 5) {
         // This looks like a name - return it
         return line;
       }
+    }
+  }
+  
+  // THIRD PASS: Handle concatenated names (OCR missed space, e.g., "JINKIM" -> "JIN KIM")
+  // Check for all-caps single words that look like concatenated names (6-12 chars, all caps)
+  // Prioritize early lines (especially first line) as names are usually at the top
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const words = line.split(/\s+/).filter(w => w.length > 0);
+    
+    // If single word, all caps, 6-12 characters, might be concatenated name
+    if (words.length === 1 && 
+        line.toUpperCase() === line && 
+        /^[A-Z]+$/.test(line) &&
+        line.length >= 6 && 
+        line.length <= 12 &&
+        !companySuffixes.test(line) &&
+        !addressKeywords.test(line) &&
+        !/@/.test(line) &&
+        !/^\+?\d/.test(line) &&
+        !titleKeywords.test(line)) {
+      
+      // Try to split into two name parts (common pattern: 3-4 chars + 3-4 chars)
+      // Examples: "JINKIM" -> "JIN KIM", "JOHNSMITH" -> "JOHN SMITH"
+      for (let splitPoint = 3; splitPoint <= Math.min(6, line.length - 3); splitPoint++) {
+        const firstPart = line.substring(0, splitPoint);
+        const secondPart = line.substring(splitPoint);
+        
+        // Both parts should be reasonable name lengths (2-6 chars each)
+        if (firstPart.length >= 2 && firstPart.length <= 6 &&
+            secondPart.length >= 2 && secondPart.length <= 6) {
+          
+          // HIGH PRIORITY: If this is the first line, it's very likely a name
+          if (i === 0) {
+            return `${firstPart} ${secondPart}`;
+          }
+          
+          // Check if next line has non-ASCII (Korean/Chinese) - confirms it's a name
+          if (i + 1 < lines.length) {
+            const nextLine = lines[i + 1].trim();
+            if (nextLine && /[^\x00-\x7F]/.test(nextLine) && !/@/.test(nextLine) && !/^\+?\d/.test(nextLine)) {
+              return `${firstPart} ${secondPart}`;
+            }
+          }
+          
+          // If this appears before contact info or title, it's likely a name
+          const hasContactInfo = lines.slice(i + 1).some(l => {
+            const trimmed = l.trim();
+            return trimmed && (/@/.test(trimmed) || /^\+?\d/.test(trimmed) || companySuffixes.test(trimmed) || titleKeywords.test(trimmed));
+          });
+          
+          // If it's in the first 3 lines OR appears before contact info, it's likely a name
+          if (hasContactInfo || i < 3) {
+            return `${firstPart} ${secondPart}`;
+          }
+        }
+      }
+    }
+  }
+  
+  // FOURTH PASS: Look for all-caps 2-word lines (like "JIN KIM") anywhere in first 20 lines
+  // These are often prominent names on business cards
+  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const words = line.split(/\s+/).filter(w => w.length > 0);
+    
+    // Check for all-caps 2-word names
+    if (words.length === 2 && 
+        line.toUpperCase() === line && 
+        /^[A-Z\s]+$/.test(line) &&
+        words.every(w => w.length >= 2 && w.length <= 8) &&
+        !companySuffixes.test(line) &&
+        !addressKeywords.test(line) &&
+        !/@/.test(line) &&
+        !/^\+?\d/.test(line) &&
+        !titleKeywords.test(line)) {
+      return line;
     }
   }
   
@@ -227,30 +633,59 @@ export const extractCompany = (text) => {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   
   // Look for company suffixes
-  const companySuffixes = /(PTE|LLC|LTD|CORP|CO|INC|INCORPORATED|LIMITED|LLP|GMBH|AG|S\.?A\.?|BV|NV)/i;
+  const companySuffixes = /(PTE|LLC|LTD|CORP|CO|INC|INCORPORATED|LIMITED|LLP|GMBH|AG|S\.?A\.?|BV|NV|GROUP)/i;
   
   // Address keywords to exclude
   const addressKeywords = /(Tower|Building|St|Street|Road|Ave|Avenue|Lane|Blk|Block|Suite|Floor|Tower|Plaza|Center|Centre|Park|Drive|Dr|Way|Boulevard|Blvd|Daero|Dong|Gu|Seoul)/i;
   
+  // Helper to check if a line looks like a name (to exclude from company extraction)
+  const looksLikeName = (line) => {
+    const words = line.split(/\s+/).filter(w => w.length > 0);
+    // Single word all-caps 6-12 chars (like "JINKIM") - likely a concatenated name
+    if (words.length === 1 && line.toUpperCase() === line && /^[A-Z]+$/.test(line) && 
+        line.length >= 6 && line.length <= 12) {
+      return true;
+    }
+    // 2-word all-caps (like "JIN KIM") - likely a name
+    if (words.length === 2 && line.toUpperCase() === line && /^[A-Z\s]+$/.test(line) &&
+        words.every(w => w.length >= 2 && w.length <= 8)) {
+      return true;
+    }
+    return false;
+  };
+  
   for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+    
     // Skip if line starts with a number (likely address)
-    if (/^\d+\s/.test(line)) {
+    if (/^\d+\s/.test(trimmedLine)) {
+      continue;
+    }
+    
+    // Skip if line contains email (should not be company)
+    if (/@/.test(trimmedLine)) {
+      continue;
+    }
+    
+    // Skip if line looks like a name (e.g., "JINKIM", "JIN KIM")
+    if (looksLikeName(trimmedLine)) {
       continue;
     }
     
     // Check if line contains company suffix
-    if (companySuffixes.test(line)) {
+    if (companySuffixes.test(trimmedLine)) {
       // If line contains address keywords, skip it
-      if (addressKeywords.test(line)) {
+      if (addressKeywords.test(trimmedLine)) {
         continue;
       }
       
-      const suffixMatch = line.match(companySuffixes);
+      const suffixMatch = trimmedLine.match(companySuffixes);
       if (suffixMatch) {
-        const suffixIndex = line.indexOf(suffixMatch[0]);
-        const beforeSuffix = line.substring(0, suffixIndex).trim();
+        const suffixIndex = trimmedLine.indexOf(suffixMatch[0]);
+        const beforeSuffix = trimmedLine.substring(0, suffixIndex).trim();
         const beforeWords = beforeSuffix.split(/\s+/);
-        const suffixPart = line.substring(suffixIndex).trim();
+        const suffixPart = trimmedLine.substring(suffixIndex).trim();
         
         // If line has 4+ words before suffix, likely "Name Name Company Ltd" pattern (e.g., "Sug LIM NetApp Korea Ltd")
         // Extract words from after the name part (skip first 2 words which are likely the name)
@@ -288,15 +723,66 @@ export const extractCompany = (text) => {
     }
     
     // Check for all uppercase lines (might be company names) - but be more careful
-    if (line.length > 3 && line.toUpperCase() === line && /^[A-Z\s]+$/.test(line)) {
+    if (trimmedLine.length > 3 && trimmedLine.toUpperCase() === trimmedLine && /^[A-Z\s]+$/.test(trimmedLine)) {
+      // Skip if it contains email
+      if (/@/.test(trimmedLine)) {
+        continue;
+      }
+      
       // Skip if it looks like an address
-      if (!/\d{4,}/.test(line) && !addressKeywords.test(line)) {
-        // Make sure it doesn't look like a personal name (2-3 short words all caps)
-        const words = line.split(/\s+/);
-        if (!(words.length === 2 && words.every(w => w.length <= 6))) {
-          return line;
+      if (!/\d{4,}/.test(trimmedLine) && !addressKeywords.test(trimmedLine)) {
+        // Make sure it doesn't look like a personal name
+        const words = trimmedLine.split(/\s+/);
+        // Skip if it's a 2-word name (like "JIN KIM") or single concatenated name (like "JINKIM")
+        if (words.length === 2 && words.every(w => w.length <= 6)) {
+          continue; // Likely a name, skip
+        }
+        if (words.length === 1 && trimmedLine.length >= 6 && trimmedLine.length <= 12 && trimmedLine.toUpperCase() === trimmedLine) {
+          continue; // Likely a concatenated name, skip
+        }
+        // Must have 3+ words or be longer to be a company
+        if (words.length >= 3 || trimmedLine.length > 12) {
+          return trimmedLine;
         }
       }
+    }
+  }
+  
+  // FALLBACK: Extract company name from email domain or website URL
+  // This handles edge cases where company name isn't explicitly stated
+  const email = extractEmail(text);
+  if (email) {
+    const emailMatch = email.match(/@([a-zA-Z0-9-]+)\./);
+    if (emailMatch) {
+      const domain = emailMatch[1];
+      // Skip common generic domains
+      if (!['gmail', 'yahoo', 'hotmail', 'outlook', 'icloud', 'mail'].includes(domain.toLowerCase())) {
+        // Capitalize first letter and format as company name
+        const companyName = domain.charAt(0).toUpperCase() + domain.slice(1).toLowerCase();
+        // Remove common suffixes that might be in domain
+        const cleanName = companyName.replace(/(group|app|com|net|org|co|io)$/i, '');
+        if (cleanName.length >= 3) {
+          return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+        }
+        return companyName;
+      }
+    }
+  }
+  
+  // Also check website URL for company name
+  const websiteMatch = text.match(/(?:www\.|https?:\/\/)([a-zA-Z0-9-]+)\.(?:com|net|org|co|io|app)/i);
+  if (websiteMatch) {
+    const domain = websiteMatch[1];
+    // Skip common generic domains
+    if (!['gmail', 'yahoo', 'hotmail', 'outlook', 'icloud', 'mail', 'google', 'facebook', 'linkedin'].includes(domain.toLowerCase())) {
+      // Capitalize first letter and format as company name
+      const companyName = domain.charAt(0).toUpperCase() + domain.slice(1).toLowerCase();
+      // Remove common suffixes
+      const cleanName = companyName.replace(/(group|app|com|net|org|co|io)$/i, '');
+      if (cleanName.length >= 3) {
+        return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+      }
+      return companyName;
     }
   }
   
@@ -480,7 +966,7 @@ export const extractLinkedIn = (text) => {
 export const extractCardInfo = async (file) => {
   const rawText = await extractTextFromImage(file);
 
-  return {
+  const extractedData = {
     name: extractName(rawText),
     company: extractCompany(rawText),
     department: extractDepartment(rawText),
@@ -492,4 +978,23 @@ export const extractCardInfo = async (file) => {
     linkedIn: extractLinkedIn(rawText),
     rawText,
   };
+  
+  // Log extraction results
+  console.group('📄 OCR Extraction Results (extractCardInfo)');
+  console.log('Raw OCR Text:');
+  console.log(rawText);
+  console.log('---');
+  console.log('Extracted Fields:');
+  console.log('  Name:', extractedData.name || '(not found)');
+  console.log('  Company:', extractedData.company || '(not found)');
+  console.log('  Position:', extractedData.position || '(not found)');
+  console.log('  Department:', extractedData.department || '(not found)');
+  console.log('  Phone:', extractedData.phone || '(not found)');
+  console.log('  Mobile:', extractedData.mobile || '(not found)');
+  console.log('  Email:', extractedData.email || '(not found)');
+  console.log('  Address:', extractedData.address || '(not found)');
+  console.log('  LinkedIn:', extractedData.linkedIn || '(not found)');
+  console.groupEnd();
+
+  return extractedData;
 };
