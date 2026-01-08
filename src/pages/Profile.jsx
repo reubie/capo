@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera } from 'lucide-react';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompression';
@@ -56,18 +56,24 @@ const Profile = () => {
       // Fetch user's profile card using the dedicated endpoint
       const response = await cardAPI.getMyProfile();
       
-      // The API returns: { code: "200", message: "Success", data: { email, cardImageUrl, ... } }
+      console.log('📥 API Response from /api/user/my-profile:', response?.data);
+      
+      // The API returns: { code: "200", message: "Success", data: [{ cardOwnerName, companyName, department, position, phone, mobile, companyAddress, cardImageUrl }] }
       const profileData = response?.data?.data;
       
-      // Handle response structure (currently returns object, not array)
+      console.log('📋 Profile data structure:', Array.isArray(profileData) ? 'Array' : typeof profileData, profileData);
+      
+      // Handle response structure - API returns an array with business card data
       let userCard = null;
       if (profileData && typeof profileData === 'object') {
         if (Array.isArray(profileData) && profileData.length > 0) {
-          // If API returns array (future structure)
+          // API returns array - get first card object
           userCard = profileData[0];
+          console.log('✅ Extracted card from array:', userCard);
         } else if (!Array.isArray(profileData)) {
-          // Current structure: object with email and cardImageUrl
+          // Fallback: if API returns object directly instead of array
           userCard = profileData;
+          console.log('✅ Using card object directly:', userCard);
         }
       }
       
@@ -401,6 +407,7 @@ const Profile = () => {
                       </div>
                     )}
 
+                    {/* Display Mobile (prioritize mobile over phone) */}
                     {myCard.mobile && (
                       <div className="flex items-start gap-3">
                         <Phone className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
@@ -414,6 +421,39 @@ const Profile = () => {
                           >
                             {normalizePhoneNumber(myCard.mobile)}
                           </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display Phone - show if it exists and is different from mobile */}
+                    {myCard.phone && (!myCard.mobile || (myCard.mobile && normalizePhoneNumber(myCard.phone) !== normalizePhoneNumber(myCard.mobile))) && (
+                      <div className="flex items-start gap-3">
+                        <Phone className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Phone
+                          </label>
+                          <a 
+                            href={`tel:${myCard.phone.replace(/\s/g, '')}`}
+                            className="text-sm text-brand-brown hover:text-brand-orange transition-colors"
+                          >
+                            {normalizePhoneNumber(myCard.phone)}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display Company Address */}
+                    {myCard.companyAddress && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-5 h-5 text-brand-orange flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+                            Company Address
+                          </label>
+                          <p className="text-sm text-brand-brown">
+                            {myCard.companyAddress}
+                          </p>
                         </div>
                       </div>
                     )}
