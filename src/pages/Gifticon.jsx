@@ -28,19 +28,19 @@ const Gifticon = () => {
       <div className="relative bg-brand-background/95 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-brand-brown/20">
         <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 tablet:px-8 laptop:px-12 desktop:px-16 py-2 xs:py-3 sm:py-4 flex items-center justify-between gap-2 xs:gap-3">
           <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
-              <button
+            <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
-              >
-              <Home className="w-4 h-4 xs:w-5 xs:h-5" />
-              <span className="hidden sm:inline text-xs xs:text-sm">Home</span>
-              </button>
-            <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
+              className="flex items-center gap-2 xs:gap-3 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
+            >
+              <Home className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7" />
+              <span className="hidden sm:inline text-sm xs:text-base">Home</span>
+            </button>
             <img 
               src="/images/logo.png" 
               alt="Show you care" 
-              className="h-8 xs:h-10 sm:h-12 md:h-14 object-contain flex-shrink-0"
-              style={{ maxWidth: 'clamp(80px, 15vw, 150px)' }}
+              onClick={() => navigate('/')}
+              className="h-12 xs:h-14 sm:h-16 md:h-18 lg:h-20 object-contain flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ maxWidth: 'clamp(140px, 22vw, 220px)' }}
             />
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">

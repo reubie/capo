@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2 } from 'lucide-react';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
+import { compressImage } from '../utils/imageCompression';
+import { generateBusinessCard } from '../utils/businessCardGenerator';
 import ConfirmModal from '../components/ConfirmModal';
 import AddCardModal from '../components/AddCardModal';
 import { cardAPI } from '../utils/api';
@@ -16,6 +18,8 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [myCard, setMyCard] = useState(null);
   const [loadingCard, setLoadingCard] = useState(true);
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
 
   useEffect(() => {
     if (!hasValidToken()) {
@@ -37,6 +41,12 @@ const Profile = () => {
 
     // Fetch user's business card
     loadMyCard();
+    
+    // Load profile picture from localStorage
+    const savedPicture = localStorage.getItem('profilePicture');
+    if (savedPicture) {
+      setProfilePicture(savedPicture);
+    }
   }, [navigate]);
 
   const loadMyCard = async () => {
@@ -63,13 +73,26 @@ const Profile = () => {
       
       // Normalize phone numbers when setting user card (if they exist)
       if (userCard) {
-        setMyCard({
+        const normalizedCard = {
           ...userCard,
           // Normalize phone numbers if they exist (for future API updates)
           phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
           mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
-        });
-        console.log('✅ Loaded user profile card:', userCard);
+        };
+        
+        // If no cardImageUrl exists but we have card data, generate a basic card
+        if (!normalizedCard.cardImageUrl && normalizedCard.cardOwnerName) {
+          try {
+            const generatedCardUrl = await generateBusinessCard(normalizedCard);
+            normalizedCard.cardImageUrl = generatedCardUrl;
+            console.log('✅ Generated business card image for profile');
+          } catch (error) {
+            console.error('Error generating business card:', error);
+          }
+        }
+        
+        setMyCard(normalizedCard);
+        console.log('✅ Loaded user profile card:', normalizedCard);
       } else {
         // No card registered yet
         setMyCard(null);
@@ -103,6 +126,47 @@ const Profile = () => {
     setTimeout(() => {
       logout();
     }, 500);
+  };
+
+  const handleProfilePictureUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setUploadingPicture(true);
+    try {
+      // Compress the image for profile picture (smaller size for avatar)
+      const compressedDataUrl = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.8,
+        maxSizeMB: 0.5, // 500KB max for profile picture
+      });
+
+      // Store in localStorage (in production, you'd upload to backend)
+      localStorage.setItem('profilePicture', compressedDataUrl);
+      setProfilePicture(compressedDataUrl);
+      
+      toast.success('Profile picture updated successfully! 🎉');
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast.error('Failed to upload profile picture. Please try again.');
+    } finally {
+      setUploadingPicture(false);
+      // Reset file input
+      e.target.value = '';
+    }
   };
 
   const handleSaveMyCard = async ({ file, cardData }) => {
@@ -173,17 +237,17 @@ const Profile = () => {
           <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
+              className="flex items-center gap-2 xs:gap-3 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
             >
-              <Home className="w-4 h-4 xs:w-5 xs:h-5" />
-              <span className="hidden sm:inline text-xs xs:text-sm">Home</span>
+              <Home className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7" />
+              <span className="hidden sm:inline text-sm xs:text-base">Home</span>
             </button>
-            <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <img 
               src="/images/logo.png" 
               alt="Show you care" 
-              className="h-8 xs:h-10 sm:h-12 md:h-14 object-contain flex-shrink-0"
-              style={{ maxWidth: 'clamp(80px, 15vw, 150px)' }}
+              onClick={() => navigate('/')}
+              className="h-12 xs:h-14 sm:h-16 md:h-18 lg:h-20 object-contain flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ maxWidth: 'clamp(140px, 22vw, 220px)' }}
             />
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">
@@ -199,8 +263,41 @@ const Profile = () => {
         <div className="bg-brand-cardLight rounded-xl shadow-lg border border-brand-brown/20 p-6 xs:p-8">
           {/* Profile Header */}
           <div className="flex flex-col items-center mb-6 pb-6 border-b border-brand-brown/20">
-            <div className="w-24 h-24 xs:w-28 xs:h-28 rounded-full bg-brand-orange/10 flex items-center justify-center mb-4">
-              <User className="w-12 h-12 xs:w-14 xs:h-14 text-brand-orange" />
+            {/* Profile Picture with Upload */}
+            <div className="relative mb-4">
+              <div className="relative w-24 h-24 xs:w-28 xs:h-28 rounded-full overflow-hidden border-4 border-brand-orange/20 bg-brand-orange/10 flex items-center justify-center">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-12 h-12 xs:w-14 xs:h-14 text-brand-orange" />
+                )}
+              </div>
+              
+              {/* Upload Button Overlay */}
+              <label
+                htmlFor="profile-picture-upload"
+                className="absolute bottom-0 right-0 w-8 h-8 xs:w-10 xs:h-10 bg-brand-orange rounded-full flex items-center justify-center cursor-pointer hover:bg-brand-orangeLight transition-colors shadow-lg border-2 border-white"
+                title="Upload profile picture"
+              >
+                {uploadingPicture ? (
+                  <div className="w-4 h-4 xs:w-5 xs:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4 xs:w-5 xs:h-5 text-white" />
+                )}
+              </label>
+              
+              <input
+                id="profile-picture-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                className="hidden"
+                disabled={uploadingPicture}
+              />
             </div>
             
             <p className="text-xl xs:text-2xl font-bold text-brand-textSecondary">
@@ -423,6 +520,7 @@ const Profile = () => {
         onClose={() => setShowMyCardModal(false)}
         onSave={handleSaveMyCard}
         uploading={uploading}
+        initialData={myCard} // Pass existing card data for editing
       />
     </div>
   );

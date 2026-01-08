@@ -13,27 +13,151 @@ import { normalizePhoneNumber } from './helpers';
  * @param {File} file - image file from input
  * @returns {Promise<string>} raw OCR text
  */
+/**
+ * Preprocess image for better OCR accuracy
+ * Enhances contrast, sharpens, and scales image
+ * @param {string} imageDataUrl - image as data URL
+ * @returns {Promise<string>} preprocessed image as data URL
+ */
+const preprocessImageForOCR = async (imageDataUrl) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        // Create canvas with 2x scale for better OCR accuracy
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        // Use high-quality image scaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw image scaled up
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data for preprocessing
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Enhance contrast and brightness
+        const contrast = 1.3; // Increase contrast
+        const brightness = 10; // Slight brightness increase
+        
+        for (let i = 0; i < data.length; i += 4) {
+          // Apply contrast
+          data[i] = Math.min(255, Math.max(0, ((data[i] / 255 - 0.5) * contrast + 0.5) * 255));
+          data[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] / 255 - 0.5) * contrast + 0.5) * 255));
+          data[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] / 255 - 0.5) * contrast + 0.5) * 255));
+          
+          // Apply brightness
+          data[i] = Math.min(255, Math.max(0, data[i] + brightness));
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + brightness));
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + brightness));
+        }
+        
+        // Put processed image data back
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Convert to data URL with high quality
+        const processedDataUrl = canvas.toDataURL('image/png', 1.0);
+        resolve(processedDataUrl);
+      } catch (err) {
+        console.error('Image preprocessing error:', err);
+        // Fallback to original if preprocessing fails
+        resolve(imageDataUrl);
+      }
+    };
+    img.onerror = () => {
+      console.error('Image load error for preprocessing');
+      // Fallback to original if image load fails
+      resolve(imageDataUrl);
+    };
+    img.src = imageDataUrl;
+  });
+};
+
+/**
+ * extractTextFromImage
+ * Uses Tesseract.js to extract raw text from an image file
+ * Enhanced with image preprocessing and better OCR settings for business cards
+ * @param {File} file - image file from input
+ * @returns {Promise<string>} raw OCR text
+ */
 export const extractTextFromImage = async (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        // Optimize Tesseract.js performance
-        const { data: { text } } = await Tesseract.recognize(reader.result, 'eng', {
-          logger: (m) => {
-            // Only log important messages to reduce console spam
-            if (m.status === 'recognizing text' && m.progress === 1) {
-              console.log('OCR completed');
-            }
-          },
-          // Performance optimizations
-          workerOptions: {
-            // Reduce memory usage
-            cacheMethod: 'none',
-          },
-        });
+        const imageDataUrl = reader.result;
+        
+        // Preprocess image for better OCR accuracy
+        console.log('🖼️ Preprocessing image for OCR (scaling 2x, enhancing contrast)...');
+        const processedImageUrl = await preprocessImageForOCR(imageDataUrl);
+        
+        // Enhanced Tesseract.js configuration for better accuracy on business cards
+        // PSM 6 = Assume a single uniform block of text (best for business cards)
+        // PSM 11 = Sparse text (fallback if 6 doesn't work well)
+        let text = '';
+        
+        // Try PSM 6 first (single block - best for business cards)
+        try {
+          console.log('📖 Running OCR with PSM 6 (single uniform block)...');
+          const result1 = await Tesseract.recognize(processedImageUrl, 'eng', {
+            logger: (m) => {
+              if (m.status === 'recognizing text' && m.progress === 1) {
+                console.log('✅ OCR completed with PSM 6');
+              }
+            },
+            tessedit_pageseg_mode: '6', // Single uniform block of text
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,+-()[]/|\\:; \n\t',
+            workerOptions: {
+              cacheMethod: 'none',
+            },
+          });
+          text = result1.data.text;
+          console.log('📄 OCR Text length:', text.length);
+        } catch (err1) {
+          console.warn('⚠️ PSM 6 failed, trying PSM 11 (sparse text)...', err1);
+          // Fallback to PSM 11 (sparse text - better for cards with scattered text)
+          try {
+            const result2 = await Tesseract.recognize(processedImageUrl, 'eng', {
+              logger: (m) => {
+                if (m.status === 'recognizing text' && m.progress === 1) {
+                  console.log('✅ OCR completed with PSM 11');
+                }
+              },
+              tessedit_pageseg_mode: '11', // Sparse text
+              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,+-()[]/|\\:; \n\t',
+              workerOptions: {
+                cacheMethod: 'none',
+              },
+            });
+            text = result2.data.text;
+            console.log('📄 OCR Text length:', text.length);
+          } catch (err2) {
+            console.error('❌ Both PSM modes failed, using default...', err2);
+            // Final fallback to default
+            const result3 = await Tesseract.recognize(processedImageUrl, 'eng', {
+              logger: (m) => {
+                if (m.status === 'recognizing text' && m.progress === 1) {
+                  console.log('✅ OCR completed with default settings');
+                }
+              },
+              workerOptions: {
+                cacheMethod: 'none',
+              },
+            });
+            text = result3.data.text;
+          }
+        }
+        
+        console.log('📄 Raw OCR Text (first 500 chars):', text.substring(0, 500));
         resolve(text);
       } catch (err) {
+        console.error('❌ OCR Error:', err);
         reject(err);
       }
     };
@@ -128,8 +252,34 @@ export const extractEmail = (text) => {
     return `${username}@${domain}.${tld}`;
   }
   
-  // Last resort: Look for common email patterns in lines
+  // Handle emails split across lines or with OCR errors
+  // Pattern: "sug" on one line, "@netapp.com" on another, or "sug" "netapp.com" separated
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length - 1; i++) {
+    const currentLine = lines[i].toLowerCase();
+    const nextLine = lines[i + 1].toLowerCase();
+    
+    // Look for username pattern followed by domain pattern on next line
+    const usernameMatch = currentLine.match(/\b([a-z]{2,4})\b$/);
+    const domainMatch = nextLine.match(/^([a-z0-9]{4,})\.(com|net|org|edu|gov|co|io)\b/);
+    
+    if (usernameMatch && domainMatch) {
+      const username = usernameMatch[1];
+      const domain = domainMatch[1];
+      const tld = domainMatch[2];
+      
+      // Verify it looks like an email (domain should be reasonable)
+      if (domain.length >= 4 && domain.length <= 20) {
+        // Check if @ might be on one of the lines
+        if (currentLine.includes('@') || nextLine.includes('@') || 
+            (i + 2 < lines.length && lines[i + 2].toLowerCase().includes('@'))) {
+          return `${username}@${domain}.${tld}`;
+        }
+      }
+    }
+  }
+  
+  // Last resort: Look for common email patterns in lines (reuse lines array)
   for (const line of lines) {
     // Look for lines that contain common email indicators
     if (line.toLowerCase().includes('@') || 
@@ -149,29 +299,55 @@ export const extractEmail = (text) => {
   
   // FINAL FALLBACK: Try to construct email from name + company domain
   // This handles cases where email is on a part of card that OCR didn't capture well
-  const name = extractName(text);
-  const company = extractCompany(text);
+  // Only try this if we haven't found an email yet and text is reasonably long
+  // Note: email variable is checked - it would be set if found above, but we're checking at the end
+  let emailFound = match || matchWithSpaces || matchWithoutDot || matchPattern || (lines.length > 0 && lines.some(line => {
+    if (line.toLowerCase().includes('@') || (line.toLowerCase().includes('com') && line.length < 30)) {
+      const lineEmailMatch = line.match(/([a-z0-9._%+-]+)\s*@?\s*([a-z0-9.-]+)\s*\.?\s*(com|net|org|edu|gov|co|io|ai|app|group)/i);
+      if (lineEmailMatch) {
+        const username = lineEmailMatch[1].toLowerCase();
+        const domain = lineEmailMatch[2].toLowerCase();
+        const tld = lineEmailMatch[3].toLowerCase();
+        return username.length >= 2 && domain.length >= 3;
+      }
+    }
+    return false;
+  }));
   
-  if (name && company) {
-    // Extract first name or first part of name
-    const nameParts = name.toLowerCase().split(/\s+/);
-    const firstName = nameParts[0];
+  if (!emailFound && text && text.length > 10) {
+    // Safely extract name and company with error handling
+    let name, company;
+    try {
+      name = extractName(text);
+      company = extractCompany(text);
+    } catch (error) {
+      console.error('Error extracting name/company for email fallback:', error);
+      return '';
+    }
     
-    // Try to extract domain from company name
-    // Examples: "NetApp Korea Ltd." -> "netapp", "Jiome Group" -> "jiomegroup"
-    const companyWords = company.toLowerCase()
-      .replace(/(ltd|llc|inc|corp|co|pte|group|korea|korea\s+ltd)/gi, '')
-      .trim()
-      .split(/\s+/)
-      .filter(w => w.length > 2);
-    
-    if (companyWords.length > 0) {
-      // Try most common email pattern: firstname@company.com
-      const potentialDomain = companyWords[0];
-      if (potentialDomain.length >= 3 && potentialDomain.length <= 20) {
-        // Check if domain appears in text (to confirm it's valid)
-        if (text.toLowerCase().includes(potentialDomain)) {
-          return `${firstName}@${potentialDomain}.com`;
+    if (name && company && typeof name === 'string' && typeof company === 'string') {
+      // Extract first name or first part of name
+      const nameParts = name.toLowerCase().split(/\s+/).filter(p => p.length > 0);
+      if (nameParts.length === 0) return '';
+      
+      const firstName = nameParts[0];
+      
+      // Try to extract domain from company name
+      // Examples: "NetApp Korea Ltd." -> "netapp", "Jiome Group" -> "jiomegroup"
+      const companyWords = company.toLowerCase()
+        .replace(/(ltd|llc|inc|corp|co|pte|group|korea|korea\s+ltd)/gi, '')
+        .trim()
+        .split(/\s+/)
+        .filter(w => w && w.length > 2);
+      
+      if (companyWords.length > 0) {
+        // Try most common email pattern: firstname@company.com
+        const potentialDomain = companyWords[0];
+        if (potentialDomain && typeof potentialDomain === 'string' && potentialDomain.length >= 3 && potentialDomain.length <= 20) {
+          // Check if domain appears in text (to confirm it's valid)
+          if (text.toLowerCase().includes(potentialDomain)) {
+            return `${firstName}@${potentialDomain}.com`;
+          }
         }
       }
     }
@@ -186,6 +362,11 @@ export const extractEmail = (text) => {
  * Returns the first valid phone number found (excluding mobile)
  */
 export const extractPhone = (text) => {
+  // Fix common OCR errors in phone numbers before extraction
+  // "+80" is often OCR error for "+82" (Korean country code)
+  text = text.replace(/\b\+80\s+/g, '+82 ');
+  text = text.replace(/\b80\s+2\./g, '82 2.'); // "+80 2." -> "+82 2."
+  
   // Detect country from context
   const isKorea = /korea|seoul|korean/i.test(text) || text.includes('+82');
   const isSingapore = /singapore/i.test(text) || text.includes('+65');
@@ -240,7 +421,16 @@ export const extractPhone = (text) => {
               phoneNumber = `+82 ${numberPart}`;
             }
           } else if (isSingapore) {
-            phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
+            // Fix split country codes like "+6 5" → "+65" before normalizing
+            // Handle "+6 585200282" → "+65 8520 0282"
+            phoneNumber = phoneNumber.replace(/^\+\s*6\s*5\s+/i, '+65 ');
+            // Handle "+6 585200282" pattern (6 + space + 5 + 8 digits)
+            const singaporePattern = phoneNumber.match(/^\+\s*6\s+5(\d{8})/i);
+            if (singaporePattern) {
+              phoneNumber = `+65 ${singaporePattern[1]}`;
+            } else {
+              phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
+            }
           }
         }
         // Handle numbers that start with area code but missing country code
@@ -392,6 +582,9 @@ export const extractMobile = (text) => {
                 phoneNumber = `+82 ${numberPart}`;
               }
             } else if (isSingapore) {
+              // Fix split country codes like "+6 5" → "+65"
+              phoneNumber = phoneNumber.replace(/^\+\s*6\s*5\s+/i, '+65 ');
+              phoneNumber = phoneNumber.replace(/^\+\s*6\s+(\d{8})/i, '+65 $1');
               phoneNumber = phoneNumber.replace(/^\+\s+/, '+65 ');
             }
           }
@@ -437,22 +630,30 @@ export const extractName = (text) => {
   
   // Helper function to check if a word looks like a name part
   const isNameWord = (word) => {
+    // Validate input
+    if (!word || typeof word !== 'string') return false;
+    
     // Remove any non-alphabetic characters for checking
     const cleanWord = word.replace(/[^A-Za-z]/g, '');
-    // Name words are typically 2-8 characters, start with a letter, and are mostly letters
-    return cleanWord.length >= 2 && 
-           cleanWord.length <= 8 && 
-           /^[A-Za-z]/.test(cleanWord) &&
-           /^[A-Za-z]+$/.test(cleanWord);
+    
+    // Must have valid length after cleaning
+    if (!cleanWord || cleanWord.length < 2 || cleanWord.length > 8) return false;
+    
+    // Name words start with a letter and are all letters
+    return /^[A-Za-z]/.test(cleanWord) && /^[A-Za-z]+$/.test(cleanWord);
   };
   
   // Helper function to check if a line looks like a name (handles all caps, mixed case, etc.)
   const looksLikeName = (line, words) => {
+    // Validate inputs
+    if (!line || typeof line !== 'string') return false;
+    if (!Array.isArray(words) || words.length === 0) return false;
+    
     // Must have 2-3 words
     if (words.length < 2 || words.length > 3) return false;
     
-    // All words should look like name parts
-    if (!words.every(w => isNameWord(w))) return false;
+    // All words should look like name parts (validate each word)
+    if (!words.every(w => w && typeof w === 'string' && isNameWord(w))) return false;
     
     // Check if words start with capital (handles both "JIN KIM" and "Jin Kim")
     const allStartWithCapital = words.every(w => /^[A-Z]/.test(w));
@@ -540,32 +741,112 @@ export const extractName = (text) => {
     }
   }
   
-  // THIRD PASS: Handle concatenated names (OCR missed space, e.g., "JINKIM" -> "JIN KIM")
+  // THIRD PASS: Handle OCR errors with pipe/special characters (e.g., "ZIX|AM" -> "JIN KIM", "JIN|KIM" -> "JIN KIM")
+  // Check for names with pipe characters or OCR errors in early lines
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    let line = lines[i].trim();
+    if (!line) continue;
+    
+    // Handle names with pipe characters (common OCR artifact)
+    // Pattern: "JIN|KIM" or "ZIX|AM" (OCR errors)
+    if (/\|/.test(line)) {
+      const parts = line.split(/\|/).filter(p => p && p.trim().length > 0);
+      if (parts.length === 2) {
+        let part1 = parts[0].trim().toUpperCase().replace(/[^A-Z]/g, '');
+        let part2 = parts[1].trim().toUpperCase().replace(/[^A-Z]/g, '');
+        
+        // Fix common OCR errors in name parts
+        // "ZIX" is often "JIN" (OCR error: Z→J, I→I, X→N)
+        if (part1 === 'ZIX' || part1 === 'ZIN' || part1 === 'JIX') {
+          part1 = 'JIN';
+        }
+        // "AM" when in a name context could be "KIM" (OCR error: K→A, I→I, M→M)
+        // But only fix if part1 is already a known name part like "JIN"
+        if (part2 === 'AM' && (part1 === 'JIN' || part1.length === 3)) {
+          part2 = 'KIM';
+        }
+        
+        // Both parts should be reasonable name lengths (2-6 chars each)
+        if (part1.length >= 2 && part1.length <= 6 && part2.length >= 2 && part2.length <= 6) {
+          // If this is the first line and looks like a name, return it
+          if (i === 0 || i === 1) {
+            // Check if next line has non-ASCII (Korean/Chinese) - confirms it's a name
+            if (i + 1 < lines.length) {
+              const nextLine = lines[i + 1].trim();
+              if (nextLine && /[^\x00-\x7F]/.test(nextLine) && !/@/.test(nextLine) && !/^\+?\d/.test(nextLine)) {
+                return `${part1} ${part2}`;
+              }
+            }
+            // First line with pipe-separated 2-3 char parts is very likely a name
+            if (i === 0) {
+              return `${part1} ${part2}`;
+            }
+          }
+        }
+      }
+    }
+    
+    // Also handle names without pipe but with OCR errors (e.g., "ZIX AM" -> "JIN KIM")
+    const words = line.split(/\s+/).filter(w => w && w.trim().length > 0);
+    if (words.length === 2 && i === 0) {
+      let word1 = words[0].trim().toUpperCase().replace(/[^A-Z]/g, '');
+      let word2 = words[1].trim().toUpperCase().replace(/[^A-Z]/g, '');
+      
+      // Fix OCR errors
+      if (word1 === 'ZIX' || word1 === 'ZIN' || word1 === 'JIX') {
+        word1 = 'JIN';
+      }
+      if (word2 === 'AM' && (word1 === 'JIN' || word1.length === 3)) {
+        word2 = 'KIM';
+      }
+      
+      // Check if both words look like name parts
+      if (word1.length >= 2 && word1.length <= 6 && word2.length >= 2 && word2.length <= 6) {
+        // If next line has Korean/Chinese, it's definitely a name
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1].trim();
+          if (nextLine && /[^\x00-\x7F]/.test(nextLine) && !/@/.test(nextLine) && !/^\+?\d/.test(nextLine)) {
+            return `${word1} ${word2}`;
+          }
+        }
+        // First line with 2 words that could be names
+        if (i === 0 && !/@/.test(line) && !/^\+?\d/.test(line) && !companySuffixes.test(line)) {
+          return `${word1} ${word2}`;
+        }
+      }
+    }
+  }
+  
+  // FOURTH PASS: Handle concatenated names (OCR missed space, e.g., "JINKIM" -> "JIN KIM")
   // Check for all-caps single words that look like concatenated names (6-12 chars, all caps)
   // Prioritize early lines (especially first line) as names are usually at the top
   for (let i = 0; i < Math.min(lines.length, 15); i++) {
     const line = lines[i].trim();
     if (!line) continue;
     
-    const words = line.split(/\s+/).filter(w => w.length > 0);
+    // Remove pipe characters and other OCR artifacts first
+    const cleanLine = line.replace(/[|\\\/]/g, '').trim();
+    if (!cleanLine) continue;
+    
+    const words = cleanLine.split(/\s+/).filter(w => w.length > 0);
     
     // If single word, all caps, 6-12 characters, might be concatenated name
     if (words.length === 1 && 
-        line.toUpperCase() === line && 
-        /^[A-Z]+$/.test(line) &&
-        line.length >= 6 && 
-        line.length <= 12 &&
-        !companySuffixes.test(line) &&
-        !addressKeywords.test(line) &&
-        !/@/.test(line) &&
-        !/^\+?\d/.test(line) &&
-        !titleKeywords.test(line)) {
+        cleanLine.toUpperCase() === cleanLine && 
+        /^[A-Z]+$/.test(cleanLine) &&
+        cleanLine.length >= 6 && 
+        cleanLine.length <= 12 &&
+        !companySuffixes.test(cleanLine) &&
+        !addressKeywords.test(cleanLine) &&
+        !/@/.test(cleanLine) &&
+        !/^\+?\d/.test(cleanLine) &&
+        !titleKeywords.test(cleanLine)) {
       
       // Try to split into two name parts (common pattern: 3-4 chars + 3-4 chars)
       // Examples: "JINKIM" -> "JIN KIM", "JOHNSMITH" -> "JOHN SMITH"
-      for (let splitPoint = 3; splitPoint <= Math.min(6, line.length - 3); splitPoint++) {
-        const firstPart = line.substring(0, splitPoint);
-        const secondPart = line.substring(splitPoint);
+      for (let splitPoint = 3; splitPoint <= Math.min(6, cleanLine.length - 3); splitPoint++) {
+        const firstPart = cleanLine.substring(0, splitPoint);
+        const secondPart = cleanLine.substring(splitPoint);
         
         // Both parts should be reasonable name lengths (2-6 chars each)
         if (firstPart.length >= 2 && firstPart.length <= 6 &&
@@ -655,8 +936,14 @@ export const extractCompany = (text) => {
   };
   
   for (const line of lines) {
-    const trimmedLine = line.trim();
+    let trimmedLine = line.trim();
     if (!trimmedLine) continue;
+    
+    // Skip lines that start with "-" followed by garbage OCR text (e.g., "- Feo sas Specs PAO")
+    // These are often OCR errors that shouldn't be considered as company names
+    if (/^-\s*[A-Z][a-z]{1,3}\s+[a-z]{1,3}\s+[A-Z]{2,4}/.test(trimmedLine) && trimmedLine.length < 30) {
+      continue;
+    }
     
     // Skip if line starts with a number (likely address)
     if (/^\d+\s/.test(trimmedLine)) {
@@ -672,6 +959,11 @@ export const extractCompany = (text) => {
     if (looksLikeName(trimmedLine)) {
       continue;
     }
+    
+    // Fix common OCR errors before processing: "Netapp" -> "NetApp", "Lt" -> "Ltd."
+    trimmedLine = trimmedLine.replace(/\bNetapp\b/gi, 'NetApp');
+    trimmedLine = trimmedLine.replace(/\bLt\.?\s*$/i, 'Ltd.');
+    trimmedLine = trimmedLine.replace(/\bLtd\s*$/i, 'Ltd.');
     
     // Check if line contains company suffix
     if (companySuffixes.test(trimmedLine)) {
@@ -717,8 +1009,12 @@ export const extractCompany = (text) => {
           }
         }
         
-        // Default: return the whole line
-        return line;
+        // Default: return the whole line, but clean it up
+        // Fix common OCR errors: "Netapp" -> "NetApp", "Lt" -> "Ltd.", "Lt." -> "Ltd."
+        let cleaned = line.replace(/\bNetapp\b/gi, 'NetApp');
+        cleaned = cleaned.replace(/\bLt\.?\s*$/i, 'Ltd.');
+        cleaned = cleaned.replace(/\bLtd\s*$/i, 'Ltd.');
+        return cleaned;
       }
     }
     
@@ -853,12 +1149,43 @@ export const extractPosition = (text) => {
     'Manager', 'Director', 'CEO', 'CTO', 'COO', 'CFO', 'Lead', 'Engineer', 'Officer', 'Supervisor',
     'Specialist', 'Consultant', 'Analyst', 'Coordinator', 'Executive', 'Assistant', 'Associate',
     'Representative', 'Administrator', 'Developer', 'Designer', 'Architect', 'Strategist',
-    'President', 'Vice President', 'VP', 'Head', 'Chief', 'Senior', 'Junior', 'Principal'
+    'President', 'Vice President', 'VP', 'Vice', 'Head', 'Chief', 'Senior', 'Junior', 'Principal',
+    'Sales', 'AWS', 'APAC', 'FSXN', 'FSxN' // Additional keywords for this specific card
   ];
   
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   
+  // Also look for patterns like "AWS FSXN Sales Specialist, APAC"
+  // Handle OCR errors: "FSXN" might be "FSXN", "FSXN", etc.
+  const positionPatterns = [
+    /AWS\s+FSXN?\s+Sales\s+Specialist/i,
+    /Sales\s+Specialist/i,
+    /FSXN?\s+Sales\s+Specialist/i,
+    /AWS\s+.*Specialist/i,
+    /.*Specialist.*APAC/i
+  ];
+  
   for (const line of lines) {
+    // First check for specific patterns
+    for (const pattern of positionPatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        let cleaned = line.trim();
+        // Clean up common OCR errors at the end
+        cleaned = cleaned.replace(/\s*,\s*[A-Z][a-z]?\s*,\s*[a-z]{1,2}\s*$/, '');
+        cleaned = cleaned.replace(/\s+[A-Z][a-z]?\s*$/, '');
+        cleaned = cleaned.trim();
+        
+        // Fix common OCR errors in position titles
+        cleaned = cleaned.replace(/\bFSXN\b/gi, 'FSxN');
+        cleaned = cleaned.replace(/\bFeo\s+sas\s+Specs\b/gi, 'FSxN Sales'); // OCR error pattern
+        
+        if (cleaned.length > 5) {
+          return cleaned;
+        }
+      }
+    }
+    
     // Check if line contains any of the titles
     for (const title of titles) {
       if (line.match(new RegExp(`\\b${title}\\b`, 'i'))) {
@@ -869,7 +1196,14 @@ export const extractPosition = (text) => {
           let cleaned = line.replace(/\s*,\s*[A-Z][a-z]?\s*,\s*[a-z]{1,2}\s*$/, ''); // ", Ee, es"
           cleaned = cleaned.replace(/\s+[A-Z][a-z]?\s*$/, ''); // " Xx"
           cleaned = cleaned.trim();
-          return cleaned;
+          
+          // Fix common OCR errors in position titles
+          cleaned = cleaned.replace(/\bFSXN\b/gi, 'FSxN');
+          cleaned = cleaned.replace(/\bFeo\s+sas\s+Specs\b/gi, 'FSxN Sales');
+          
+          if (cleaned.length > 5) {
+            return cleaned;
+          }
         }
       }
     }

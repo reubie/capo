@@ -254,15 +254,19 @@ const Network = () => {
       <div className="sticky top-0 z-40 bg-brand-background/95 backdrop-blur-sm shadow-md border-b border-brand-brown/20">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <button onClick={() => navigate('/')} className="flex items-center gap-1 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0">
-              <Home className="w-5 h-5" /> <span className="hidden sm:inline text-sm">Home</span>
-            </button>
-            <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
+              <button
+                onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-brand-textSecondary hover:text-brand-brown transition-colors font-medium flex-shrink-0"
+              >
+              <Home className="w-6 h-6 sm:w-7 sm:h-7" />
+              <span className="hidden sm:inline text-base">Home</span>
+              </button>
             <img 
               src="/images/logo.png" 
               alt="Show you care" 
-              className="h-8 xs:h-10 sm:h-12 md:h-14 object-contain flex-shrink-0"
-              style={{ maxWidth: 'clamp(80px, 15vw, 150px)' }}
+              onClick={() => navigate('/')}
+              className="h-14 sm:h-16 md:h-18 lg:h-20 object-contain flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ maxWidth: 'clamp(140px, 22vw, 220px)' }}
             />
             <div className="h-6 w-px bg-brand-brown/30 hidden xs:block"></div>
             <h1 className="text-2xl font-bold text-brand-orange truncate min-w-0">Network</h1>
@@ -370,7 +374,7 @@ const Network = () => {
             )}
 
             {/* Card Information - Only: Name, Company, Position, Phone, Email */}
-            <div className="space-y-4">
+              <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedCard.cardOwnerName && (
                   <div>
@@ -397,7 +401,7 @@ const Network = () => {
                   </div>
                 )}
                 {(selectedCard.mobile || selectedCard.phone) && (
-                  <div>
+                    <div>
                     <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">Phone</label>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-brand-textSecondary" />
@@ -418,9 +422,9 @@ const Network = () => {
                       <a href={`mailto:${selectedCard.email}`} className="text-base text-brand-orange hover:underline">
                         {selectedCard.email}
                       </a>
-                    </div>
-                  </div>
-                )}
+                </div>
+              </div>
+            )}
               </div>
             </div>
 

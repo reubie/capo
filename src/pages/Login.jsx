@@ -14,8 +14,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState('');
 
-  // Determine redirect after login: use location.state.from if exists, else default
-  const from = location.state?.from || '/gifticon';
+  // Determine redirect after login: use location.state.from if exists, else default to landing page
+  const from = location.state?.from || '/';
   const reason = location.state?.reason; // 'token_expired' or 'after_signup'
 
   useEffect(() => {

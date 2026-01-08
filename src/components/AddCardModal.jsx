@@ -1,21 +1,30 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
 import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
 import { compressBusinessCardImage } from '../utils/imageCompression';
 import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
+import { generateBusinessCard, generateBusinessCardFile } from '../utils/businessCardGenerator';
 import ErrorModal from './ErrorModal';
 
-const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
+const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'manual'
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
+  const [generatedCardPreview, setGeneratedCardPreview] = useState(null); // Generated card preview for manual entry
+  const [originalImage, setOriginalImage] = useState(null); // Original image for crop adjustment
   const [processingOCR, setProcessingOCR] = useState(false);
   const [processingCrop, setProcessingCrop] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
+  const [showCropAdjustment, setShowCropAdjustment] = useState(false);
+  const [crop, setCrop] = useState(null); // Crop coordinates for react-image-crop
+  const [completedCrop, setCompletedCrop] = useState(null); // Final crop after user confirms
+  const [cropImageRef, setCropImageRef] = useState(null); // Reference to image element for crop
   const fileInputRef = useRef(null);
   const dragCounterRef = useRef(0);
   const processedImageRef = useRef(null);
@@ -67,15 +76,22 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     };
   }, [visible]);
 
-  // Reset state when modal closes
+  // Reset state when modal closes OR initialize with existing data when opening for edit
   useEffect(() => {
     if (!visible) {
+      // Reset everything when modal closes
       setActiveTab('upload');
       setCardImage(null);
       setCardPreview(null);
+      setGeneratedCardPreview(null);
+      setOriginalImage(null);
       setProcessingOCR(false);
       setShowForm(false);
       setIsDragging(false);
+      setShowCropAdjustment(false);
+      setCrop(null);
+      setCompletedCrop(null);
+      setCropImageRef(null);
       dragCounterRef.current = 0;
       processedImageRef.current = null;
       setFormData({
@@ -96,8 +112,45 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    } else if (visible && initialData) {
+      // Pre-populate form with existing data when opening for edit
+      console.log('📝 Loading existing card data for editing:', initialData);
+      
+      const existingFormData = {
+        cardOwnerName: initialData.cardOwnerName || '',
+        companyName: initialData.companyName || '',
+        department: initialData.department || '',
+        position: initialData.position || '',
+        phone: initialData.phone || '',
+        mobile: initialData.mobile || '',
+        email: initialData.email || '',
+        companyAddress: initialData.companyAddress || '',
+        linkedIn: initialData.linkedIn || '',
+        cardImageUrl: initialData.cardImageUrl || ''
+      };
+      
+      setFormData(existingFormData);
+      
+      // Clear generated preview since we have existing data
+      setGeneratedCardPreview(null);
+      
+      // If there's an existing card image, show it as preview
+      if (initialData.cardImageUrl) {
+        setCardPreview(initialData.cardImageUrl);
+        // Don't set cardImage (File object) - let user upload new one if they want
+        setCardImage(null);
+      } else {
+        // No existing image - clear preview
+        setCardPreview(null);
+        setCardImage(null);
+      }
+      
+      // Set showForm to true so the form is displayed immediately
+      setShowForm(true);
+      // Switch to manual tab since we're editing
+      setActiveTab('manual');
     }
-  }, [visible]);
+  }, [visible, initialData]);
 
   // Process OCR when image is uploaded
   const handleProcessOCR = useCallback(async () => {
@@ -187,8 +240,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     setActiveTab(tab);
     if (tab === 'manual') {
       setShowForm(true);
-    } else if (tab === 'upload' && !cardPreview) {
-      setShowForm(false);
+    } else if (tab === 'upload') {
+      // If we have a preview from initialData but no uploaded file, allow upload
+      // If we have a new uploaded file, keep showing the form
+      if (cardPreview && !cardImage && initialData) {
+        // Editing mode: existing image shown, allow new upload
+        setShowForm(false); // Hide form until new image is uploaded
+      } else if (!cardPreview) {
+        setShowForm(false);
+      }
+      // If cardImage exists (new upload), keep form shown
     }
   };
 
@@ -207,111 +268,430 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       return false;
     }
 
+    // Reset processed ref when uploading a new file (in case we're replacing an existing image)
+    processedImageRef.current = null;
+    
     setProcessingCrop(true);
     
     try {
-      // Step 1: Auto-detect and crop business card (removes background)
-      const { croppedDataUrl, crop, warnings, quality } = await autoCropBusinessCard(file);
-      
-      // Check for critical errors that need modal display
-      const criticalErrors = warnings?.filter(w => w.severity === 'error') || [];
-      const hasCriticalErrors = criticalErrors.length > 0;
-      
-      // Display critical errors in modal (not toast)
-      if (hasCriticalErrors) {
-        const errorMessages = criticalErrors.map(w => {
-          let msg = w.message;
-          if (w.suggestion) {
-            msg += `\n\n${w.suggestion}`;
-          }
-          return msg;
-        }).join('\n\n');
+      // Step 1: Store original image for crop adjustment
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const originalDataUrl = reader.result;
+        setOriginalImage(originalDataUrl);
         
-        setErrorModal({
-          visible: true,
-          title: 'Card Detection Issue',
-          message: errorMessages
-        });
-        
-        // Still proceed with the image, but user is aware of the issue
-      }
-      
-      // Display non-critical warnings as toasts (only if no critical errors)
-      if (!hasCriticalErrors && warnings && warnings.length > 0) {
-        warnings.forEach(warning => {
-          if (warning.severity === 'warning') {
-            toast.warning(warning.message, { autoClose: 4000 });
+        try {
+          // Step 2: Auto-detect crop bounds (get suggested crop area)
+          const { croppedDataUrl, crop: autoCropBounds, warnings, quality } = await autoCropBusinessCard(file);
+          
+          // Note: We don't use croppedDataUrl here - we'll crop from original after user adjustment
+          
+          // Check for critical errors that need modal display
+          const criticalErrors = warnings?.filter(w => w.severity === 'error') || [];
+          const hasCriticalErrors = criticalErrors.length > 0;
+          
+          // Display critical errors in modal (not toast)
+          if (hasCriticalErrors) {
+            const errorMessages = criticalErrors.map(w => {
+              let msg = w.message;
+              if (w.suggestion) {
+                msg += `\n\n${w.suggestion}`;
+              }
+              return msg;
+            }).join('\n\n');
+            
+            setErrorModal({
+              visible: true,
+              title: 'Card Detection Issue',
+              message: errorMessages
+            });
           }
-          // Skip info messages - no need to show them
-        });
+          
+          // Display non-critical warnings as toasts (only if no critical errors)
+          if (!hasCriticalErrors && warnings && warnings.length > 0) {
+            warnings.forEach(warning => {
+              if (warning.severity === 'warning') {
+                toast.warning(warning.message, { autoClose: 4000 });
+              }
+            });
+          }
+          
+          // Log quality metrics for debugging
+          if (quality) {
+            console.log('📊 Card Detection Quality:', {
+              blurScore: quality.blurScore,
+              isBlurry: quality.isBlurry,
+              isTooSmall: quality.isTooSmall,
+              confidence: quality.detectionConfidence
+            });
+          }
+          
+          // Step 3: Convert auto-detected crop bounds to react-image-crop format
+          // Load image to get dimensions
+          const img = new Image();
+          img.onload = async () => {
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            
+            // Convert auto-detected bounds to percentage-based crop
+            // autoCropBounds has: { x, y, width, height } in pixels
+            let initialCrop;
+            
+            if (autoCropBounds && autoCropBounds.width && autoCropBounds.height) {
+              // Calculate crop coverage percentage
+              const cropWidthPercent = (autoCropBounds.width / imgWidth) * 100;
+              const cropHeightPercent = (autoCropBounds.height / imgHeight) * 100;
+              const cropXPercent = (autoCropBounds.x / imgWidth) * 100;
+              const cropYPercent = (autoCropBounds.y / imgHeight) * 100;
+              
+              // Check if auto-detected crop covers most of the image (>95% in both dimensions)
+              // and is near the edges (<5% margin on all sides) - meaning it's the full image
+              const coversMostOfImage = cropWidthPercent >= 95 && cropHeightPercent >= 95;
+              const nearEdges = cropXPercent <= 5 && cropYPercent <= 5 && 
+                                (cropXPercent + cropWidthPercent) >= 95 && 
+                                (cropYPercent + cropHeightPercent) >= 95;
+              
+              if (coversMostOfImage && nearEdges) {
+                // Auto-detected crop matches full image - use original image as-is
+                console.log('✅ Auto-detected crop matches full image, using original image');
+                
+                // Set preview to original image
+                setCardPreview(originalDataUrl);
+                
+                // Convert original data URL to File for OCR
+                const originalFile = dataURLtoFile(originalDataUrl, 'original-card.jpg');
+                setCardImage(originalFile);
+                
+                // Compress for backend
+                try {
+                  const compressedDataUrl = await compressBusinessCardImage(originalFile);
+                  setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+                } catch (error) {
+                  console.error('Image compression error:', error);
+                  setFormData(prev => ({ ...prev, cardImageUrl: originalDataUrl }));
+                }
+                
+                // Skip crop adjustment and proceed directly to OCR
+                setShowCropAdjustment(false);
+                setOriginalImage(null);
+                setCrop(null);
+                setCompletedCrop(null);
+                setCropImageRef(null);
+                setProcessingCrop(false);
+                
+                // Automatically proceed to OCR
+                handleProcessOCR();
+                return;
+              }
+              
+              // Use auto-detected crop (not full image)
+              initialCrop = {
+                unit: '%',
+                x: Math.max(0, cropXPercent),
+                y: Math.max(0, cropYPercent),
+                width: Math.min(100, cropWidthPercent),
+                height: Math.min(100, cropHeightPercent),
+              };
+            } else {
+              // Fallback: centered crop (80% of image, centered)
+              initialCrop = {
+                unit: '%',
+                x: 10, // 10% from left = centered for 80% width
+                y: 10, // 10% from top = centered for 80% height
+                width: 80,
+                height: 80,
+              };
+            }
+            
+            setCrop(initialCrop);
+            setShowCropAdjustment(true);
+            setProcessingCrop(false);
+          };
+          img.onerror = () => {
+            // If image fails to load, use default crop
+            const defaultCrop = {
+              unit: '%',
+              x: 10,
+              y: 10,
+              width: 80,
+              height: 80,
+            };
+            setCrop(defaultCrop);
+            setShowCropAdjustment(true);
+            setProcessingCrop(false);
+          };
+          img.src = originalDataUrl;
+          
+        } catch (error) {
+          console.error('Auto-crop error:', error);
+          
+          // Show error modal for detection failure
+          setErrorModal({
+            visible: true,
+            title: 'Card Detection Failed',
+            message: 'Could not automatically detect the business card. You can manually adjust the crop area.\n\nTips:\n• Drag the corners to adjust the crop\n• Drag the edges to resize\n• Drag the center to move the crop area'
+          });
+          
+          // Fallback: show full image with default crop (centered, 80% of image)
+          const img = new Image();
+          img.onload = () => {
+            const defaultCrop = {
+              unit: '%',
+              x: 10, // 10% from left = centered for 80% width
+              y: 10, // 10% from top = centered for 80% height
+              width: 80,
+              height: 80,
+            };
+            setCrop(defaultCrop);
+            setShowCropAdjustment(true);
+            setProcessingCrop(false);
+          };
+          img.onerror = () => {
+            // If image fails to load, use centered default crop
+            const defaultCrop = {
+              unit: '%',
+              x: 10,
+              y: 10,
+              width: 80,
+              height: 80,
+            };
+            setCrop(defaultCrop);
+            setShowCropAdjustment(true);
+            setProcessingCrop(false);
+          };
+          img.src = originalDataUrl;
+        }
+      };
+      reader.readAsDataURL(file);
+      
+    } catch (error) {
+      console.error('File processing error:', error);
+      toast.error('Failed to process image. Please try again.');
+      setProcessingCrop(false);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Skip crop and use original image as-is
+  const handleSkipCrop = async () => {
+    if (!originalImage) {
+      toast.error('Original image not available');
+      return;
+    }
+    
+    setProcessingCrop(true);
+    
+    try {
+      // Set preview to original image
+      setCardPreview(originalImage);
+      
+      // Convert original data URL to File for OCR
+      const originalFile = dataURLtoFile(originalImage, 'original-card.jpg');
+      setCardImage(originalFile);
+      
+      // Compress for backend
+      try {
+        const compressedDataUrl = await compressBusinessCardImage(originalFile);
+        setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
+      } catch (error) {
+        console.error('Image compression error:', error);
+        setFormData(prev => ({ ...prev, cardImageUrl: originalImage }));
       }
       
-      // Log quality metrics for debugging
-      if (quality) {
-        console.log('📊 Card Detection Quality:', {
-          blurScore: quality.blurScore,
-          isBlurry: quality.isBlurry,
-          isTooSmall: quality.isTooSmall,
-          confidence: quality.detectionConfidence
-        });
+      // Hide crop adjustment UI
+      setShowCropAdjustment(false);
+      setOriginalImage(null);
+      setCrop(null);
+      setCompletedCrop(null);
+      setCropImageRef(null);
+      setProcessingCrop(false);
+      
+      // Automatically proceed to OCR
+      handleProcessOCR();
+    } catch (error) {
+      console.error('Skip crop error:', error);
+      toast.error('Failed to process original image. Please try again.');
+      setProcessingCrop(false);
+    }
+  };
+
+  // Apply final crop and proceed with OCR
+  const handleCropConfirm = async () => {
+    // Use completedCrop if available, otherwise use current crop
+    const finalCrop = completedCrop || crop;
+    
+    if (!finalCrop || !originalImage || !cropImageRef) {
+      toast.error('Please adjust the crop area first');
+      return;
+    }
+    
+    if (!finalCrop.width || !finalCrop.height || finalCrop.width <= 0 || finalCrop.height <= 0) {
+      toast.error('Please select a valid crop area.');
+      return;
+    }
+    
+    // Check if crop matches full image (within 2% margin)
+    if (cropImageRef) {
+      const img = cropImageRef;
+      const scaleX = img.naturalWidth / img.width;
+      const scaleY = img.naturalHeight / img.height;
+      
+      const displayX = finalCrop.x || 0;
+      const displayY = finalCrop.y || 0;
+      const displayWidth = finalCrop.width || 0;
+      const displayHeight = finalCrop.height || 0;
+      
+      const cropXPercent = (displayX / img.width) * 100;
+      const cropYPercent = (displayY / img.height) * 100;
+      const cropWidthPercent = (displayWidth / img.width) * 100;
+      const cropHeightPercent = (displayHeight / img.height) * 100;
+      
+      // If crop covers >98% and is at edges, use original image instead
+      if (cropWidthPercent >= 98 && cropHeightPercent >= 98 && 
+          cropXPercent <= 2 && cropYPercent <= 2) {
+        console.log('✅ Crop matches full image, using original image');
+        handleSkipCrop();
+        return;
+      }
+    }
+
+    setProcessingCrop(true);
+    
+    try {
+      // Get image element
+      const img = cropImageRef;
+      
+      if (!img || !img.naturalWidth || !img.naturalHeight || !img.width || !img.height) {
+        toast.error('Image not loaded properly. Please try again.');
+        setProcessingCrop(false);
+        return;
       }
       
-      // Convert cropped data URL back to File for OCR and compression
-      const croppedFile = dataURLtoFile(croppedDataUrl, file.name);
+      // Calculate scale factors (displayed size vs natural size)
+      const scaleX = img.naturalWidth / img.width;
+      const scaleY = img.naturalHeight / img.height;
       
-      // Step 2: Use cropped image for preview
+      // react-image-crop: when unit is '%', the crop values ARE percentages
+      // But react-image-crop returns pixel values in onChange/onComplete based on displayed size
+      // We need to check if values are percentages (0-100) or pixels (based on displayed size)
+      let cropX, cropY, cropWidth, cropHeight;
+      
+      // react-image-crop: when unit is '%', onChange/onComplete return pixel values
+      // based on the displayed image size (img.width x img.height), not percentages
+      // We need to scale these pixel values to natural image size
+      const displayX = finalCrop.x || 0;
+      const displayY = finalCrop.y || 0;
+      const displayWidth = finalCrop.width || 0;
+      const displayHeight = finalCrop.height || 0;
+      
+      // Validate displayed crop dimensions
+      if (displayWidth <= 0 || displayHeight <= 0 || displayWidth > img.width || displayHeight > img.height) {
+        toast.error('Invalid crop area. Please adjust the crop area.');
+        setProcessingCrop(false);
+        return;
+      }
+      
+      // Scale displayed pixels to natural image size
+      cropX = displayX * scaleX;
+      cropY = displayY * scaleY;
+      cropWidth = displayWidth * scaleX;
+      cropHeight = displayHeight * scaleY;
+      
+      // Ensure coordinates are valid numbers and within bounds
+      cropX = Math.round(Math.max(0, Math.min(cropX, img.naturalWidth)));
+      cropY = Math.round(Math.max(0, Math.min(cropY, img.naturalHeight)));
+      cropWidth = Math.round(Math.max(1, Math.min(cropWidth, img.naturalWidth - cropX)));
+      cropHeight = Math.round(Math.max(1, Math.min(cropHeight, img.naturalHeight - cropY)));
+      
+      // Debug logging
+      console.log('📐 Crop Calculation:', {
+        displayedSize: `${img.width}x${img.height}`,
+        naturalSize: `${img.naturalWidth}x${img.naturalHeight}`,
+        scale: `${scaleX.toFixed(2)}x${scaleY.toFixed(2)}`,
+        displayCrop: { x: displayX, y: displayY, width: displayWidth, height: displayHeight },
+        naturalCrop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
+      });
+      
+      // Ensure crop coordinates are within image bounds and have minimum size
+      const MIN_CROP_SIZE = 100; // Minimum 100x100 pixels for OCR
+      cropX = Math.max(0, Math.min(cropX, img.naturalWidth - MIN_CROP_SIZE));
+      cropY = Math.max(0, Math.min(cropY, img.naturalHeight - MIN_CROP_SIZE));
+      cropWidth = Math.max(MIN_CROP_SIZE, Math.min(cropWidth, img.naturalWidth - cropX));
+      cropHeight = Math.max(MIN_CROP_SIZE, Math.min(cropHeight, img.naturalHeight - cropY));
+      
+      // Validate minimum size for OCR
+      if (cropWidth < MIN_CROP_SIZE || cropHeight < MIN_CROP_SIZE) {
+        toast.error(`Crop area is too small (minimum ${MIN_CROP_SIZE}x${MIN_CROP_SIZE} pixels). Please adjust the crop area.`);
+        setProcessingCrop(false);
+        return;
+      }
+      
+      // Create canvas to crop the image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = Math.floor(cropWidth);
+      canvas.height = Math.floor(cropHeight);
+      
+      // Draw cropped portion
+      ctx.drawImage(
+        img,
+        Math.floor(cropX), Math.floor(cropY), Math.floor(cropWidth), Math.floor(cropHeight),
+        0, 0, Math.floor(cropWidth), Math.floor(cropHeight)
+      );
+      
+      // Get cropped image as data URL
+      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      
+      // Convert to File for OCR
+      const croppedFile = dataURLtoFile(croppedDataUrl, 'cropped-card.jpg');
+      
+      // Update preview and image
       setCardPreview(croppedDataUrl);
-      
-      // Step 3: Keep cropped file for OCR (better accuracy on cropped card)
       setCardImage(croppedFile);
       
-      // Step 4: Compress cropped image for backend
+      // Compress for backend
       try {
         const compressedDataUrl = await compressBusinessCardImage(croppedFile);
         setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
       } catch (error) {
         console.error('Image compression error:', error);
-        // Fallback to cropped image if compression fails
         setFormData(prev => ({ ...prev, cardImageUrl: croppedDataUrl }));
       }
       
-      // No success message - user can see the result in the preview
+      // Hide crop adjustment UI
+      setShowCropAdjustment(false);
+      setOriginalImage(null);
+      setCrop(null);
+      setCompletedCrop(null);
+      setCropImageRef(null);
+      
+      // Automatically proceed to OCR
+      handleProcessOCR();
+      
     } catch (error) {
-      console.error('Auto-crop error:', error);
-      
-      // Show error modal for detection failure
-      setErrorModal({
-        visible: true,
-        title: 'Card Detection Failed',
-        message: 'Could not automatically detect the business card in the image. The full image will be used instead.\n\nTips for better detection:\n• Ensure the card is clearly visible\n• Make sure all edges of the card are in the frame\n• Use good lighting\n• Hold the camera steady'
-      });
-      
-      // Fallback: use original image
-      setCardImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const preview = reader.result;
-        setCardPreview(preview);
-      };
-      reader.readAsDataURL(file);
-      
-      // Compress original for backend
-      try {
-        const compressedDataUrl = await compressBusinessCardImage(file);
-        setFormData(prev => ({ ...prev, cardImageUrl: compressedDataUrl }));
-      } catch (error) {
-        console.error('Image compression error:', error);
-        const reader2 = new FileReader();
-        reader2.onloadend = () => {
-          setFormData(prev => ({ ...prev, cardImageUrl: reader2.result }));
-        };
-        reader2.readAsDataURL(file);
-      }
+      console.error('Crop application error:', error);
+      toast.error('Failed to apply crop. Please try again.');
     } finally {
       setProcessingCrop(false);
     }
-    
-    return true;
+  };
+
+  // Handle retake - reset and allow new upload
+  const handleCropRetake = () => {
+    setShowCropAdjustment(false);
+    setOriginalImage(null);
+    setCardPreview(null);
+    setCardImage(null);
+    setCrop(null);
+    setCompletedCrop(null);
+    setCropImageRef(null);
+    setFormData(prev => ({ ...prev, cardImageUrl: '' }));
+    setShowForm(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Handle card image upload from file input
@@ -540,13 +920,24 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
       return;
     }
 
-    // For manual entry, we can proceed without a file
-    // The parent component will handle sending empty string or null for the file field
+    // For manual entry without image, generate a basic business card
+    let fileToSave = cardImage;
+    if (!fileToSave && activeTab === 'manual') {
+      try {
+        // Generate a business card from the entered data
+        fileToSave = await generateBusinessCardFile(cardJsonData, 'business-card.png');
+        console.log('✅ Generated business card file for manual entry');
+      } catch (error) {
+        console.error('Error generating business card file:', error);
+        // Continue without file - parent will handle empty Blob
+      }
+    }
+
     try {
       // Pass both the file and card data to parent
-      // For manual entry, file will be null/undefined, parent should handle it
+      // For manual entry, we now have a generated card file
       await onSave({
-        file: cardImage || null, // null for manual entry without image
+        file: fileToSave || null,
         cardData: cardJsonData // JSON data without image
       });
     } catch (error) {
@@ -647,7 +1038,114 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
         {/* Upload Tab Content */}
         {activeTab === 'upload' && (
           <div className="space-y-4">
-            {!showForm ? (
+            {showCropAdjustment && originalImage ? (
+              // Crop Adjustment UI
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Adjust Crop Area</p>
+                      <p className="text-xs">
+                        Drag the corners or edges to adjust the crop area. You can increase or reduce the size to include exactly what you need.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden flex items-center justify-center">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(newCrop) => {
+                      // react-image-crop: when unit is '%', onChange returns percentages
+                      // Convert to pixels based on displayed size for display
+                      if (newCrop && newCrop.unit === '%' && cropImageRef) {
+                        const img = cropImageRef;
+                        // Validate minimum size (in pixels on displayed image)
+                        const minDisplayWidth = (100 / img.width) * 100; // Minimum 100px in percentage
+                        const minDisplayHeight = (100 / img.height) * 100;
+                        if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
+                          // Crop too small, keep current crop
+                          return;
+                        }
+                      }
+                      setCrop(newCrop);
+                    }}
+                    onComplete={(completedCrop) => {
+                      // Store completed crop for final processing
+                      if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+                        setCompletedCrop(completedCrop);
+                        // Also update the crop state with completed crop
+                        setCrop(completedCrop);
+                      }
+                    }}
+                    aspect={undefined} // Free-form crop (no aspect ratio lock)
+                    minWidth={100} // Minimum 100 pixels in percentage (0.1% if image is 100000px wide, but react-image-crop handles this)
+                    minHeight={100} // Minimum 100 pixels in percentage
+                    className="max-w-full"
+                  >
+                    <img
+                      ref={setCropImageRef}
+                      src={originalImage}
+                      alt="Original card"
+                      style={{ maxWidth: '100%', maxHeight: '400px', display: 'block', margin: '0 auto' }}
+                      onLoad={() => {
+                        // Ensure crop is set when image loads (centered)
+                        if (!crop && cropImageRef) {
+                          const defaultCrop = {
+                            unit: '%',
+                            x: 10, // 10% from left = centered for 80% width
+                            y: 10, // 10% from top = centered for 80% height
+                            width: 80,
+                            height: 80,
+                          };
+                          setCrop(defaultCrop);
+                        }
+                      }}
+                    />
+                  </ReactCrop>
+                </div>
+                
+                <div className="flex gap-3 justify-between items-center">
+                  <button
+                    onClick={handleSkipCrop}
+                    disabled={processingCrop || processingOCR || uploading}
+                    className="px-4 py-2 text-sm font-medium text-brand-brown border border-brand-brown/30 rounded-lg hover:bg-brand-backgroundAlt transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title="Use original image without cropping"
+                  >
+                    <X className="w-4 h-4" />
+                    Skip Crop (Use Original)
+                  </button>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCropRetake}
+                      disabled={processingCrop}
+                      className="px-4 py-2 border border-brand-brown/30 text-brand-brown rounded-lg font-medium hover:bg-brand-backgroundAlt transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Retake
+                    </button>
+                    <button
+                      onClick={handleCropConfirm}
+                      disabled={processingCrop || !crop}
+                      className="px-6 py-2 bg-brand-orange text-white rounded-lg font-medium hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {processingCrop ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Looks Good
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : !showForm ? (
               <>
                 {!cardPreview ? (
                   <div
@@ -754,15 +1252,18 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                     />
                   </div>
                 )}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">Information extracted from card</p>
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-semibold mb-2">⚠️ Please Review Extracted Information</p>
+                      <p className="text-xs mb-2 leading-relaxed">
+                        <span className="font-medium">Important:</span> Please carefully review the extracted information below and compare it with your business card image to ensure all data is accurate. OCR extraction may have errors, so it's essential to verify each field matches what's actually on the card.
+                      </p>
                       <p className="text-xs">
-                        Please review the extracted information below. All fields marked with{' '}
+                        All fields marked with{' '}
                         <span className="text-red-500 font-medium">*</span> are required.
-                        Fill in any missing fields before saving.
+                        Fill in or correct any missing or incorrect fields before saving to avoid discrepancies.
                       </p>
                     </div>
                   </div>
@@ -784,10 +1285,32 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
                   <p className="text-xs">
                     Fill in all the business card details below. All fields marked with{' '}
                     <span className="text-red-500 font-medium">*</span> are required.
+                    A basic business card will be automatically generated from your information.
                   </p>
                 </div>
               </div>
             </div>
+            
+            {/* Generated Card Preview */}
+            {generatedCardPreview && (
+              <div className="bg-white rounded-lg border border-brand-brown/20 p-4">
+                <label className="block text-xs font-semibold text-brand-textSecondary uppercase tracking-wider mb-2">
+                  Card Preview
+                </label>
+                <div className="flex items-center justify-center bg-brand-background rounded-lg p-4">
+                  <img
+                    src={generatedCardPreview}
+                    alt="Generated business card preview"
+                    className="max-w-full max-h-48 object-contain rounded-lg shadow-sm"
+                    style={{ mixBlendMode: 'multiply' }}
+                  />
+                </div>
+                <p className="text-xs text-brand-textSecondary text-center mt-2">
+                  This is a preview of your business card. It will be generated automatically when you save.
+                </p>
+              </div>
+            )}
+            
             {renderForm()}
           </div>
         )}
@@ -837,16 +1360,26 @@ const AddCardModal = ({ visible, onClose, onSave, uploading }) => {
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Row 1: Full Name | Company Name */}
           {renderField('cardOwnerName', 'Full Name', 'text', 'John Doe', true)}
           {renderField('companyName', 'Company Name', 'text', 'Acme Corporation', true)}
+          
+          {/* Row 2: Position/Title | Email */}
           {renderField('position', 'Position/Title', 'text', 'Senior Manager', true)}
-          {renderField('department', 'Department', 'text', 'Sales & Marketing', false)}
           {renderField('email', 'Email', 'email', 'john.doe@company.com', true)}
-          {renderField('phone', 'Phone', 'tel', '+65 1234 5678', true)}
+          
+          {/* Row 3: Mobile | Phone */}
           {renderField('mobile', 'Mobile', 'tel', '+65 9123 4567', true)}
-          {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', false)}
+          {renderField('phone', 'Phone', 'tel', '+65 6123 4567', true)}
         </div>
+        
+        {/* Row 4: LinkedIn Profile (optional, full width) */}
+        {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', false)}
+        
+        {/* Row 5: Company Address (full width) */}
         {renderField('companyAddress', 'Company Address', 'text', '123 Business Street, Singapore 123456', true)}
+        
+        {/* Hidden fields: department - not displayed but still in formData for backend */}
         {/* OCR text is processed internally but not displayed to user - sent as empty string to backend */}
         {/* cardImageUrl is now hidden from user - auto-filled when image is uploaded */}
       </form>
