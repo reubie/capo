@@ -1,4 +1,4 @@
-# Capo 靠谱 (kàopǔ)
+# Jiome
 
 A modern, responsive web application built with React and TailwindCSS for managing gift cards (Gifticon) and business card networks.
 
