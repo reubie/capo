@@ -559,7 +559,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
 
   // Apply final crop and proceed with OCR
   const handleCropConfirm = async () => {
-    // Use completedCrop if available, otherwise use current crop
+    // Use completedCrop if available (user adjusted), otherwise use current crop (initial auto-detected crop)
+    // This handles the edge case where user clicks "Looks Good" without adjusting - uses the visible rectangle
     const finalCrop = completedCrop || crop;
     
     if (!finalCrop || !originalImage || !cropImageRef) {
@@ -572,16 +573,31 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       return;
     }
     
+    // Log which crop is being used for debugging
+    if (completedCrop) {
+      console.log('✅ Using user-adjusted crop');
+    } else {
+      console.log('✅ Using initial auto-detected crop (user did not adjust)');
+    }
+    
     // Check if crop matches full image (within 2% margin)
     if (cropImageRef) {
       const img = cropImageRef;
-      const scaleX = img.naturalWidth / img.width;
-      const scaleY = img.naturalHeight / img.height;
       
-      const displayX = finalCrop.x || 0;
-      const displayY = finalCrop.y || 0;
-      const displayWidth = finalCrop.width || 0;
-      const displayHeight = finalCrop.height || 0;
+      // Handle percentage vs pixel format
+      let displayX, displayY, displayWidth, displayHeight;
+      if (finalCrop.unit === '%') {
+        // Convert percentages to pixels for comparison
+        displayX = (finalCrop.x / 100) * img.width;
+        displayY = (finalCrop.y / 100) * img.height;
+        displayWidth = (finalCrop.width / 100) * img.width;
+        displayHeight = (finalCrop.height / 100) * img.height;
+      } else {
+        displayX = finalCrop.x || 0;
+        displayY = finalCrop.y || 0;
+        displayWidth = finalCrop.width || 0;
+        displayHeight = finalCrop.height || 0;
+      }
       
       const cropXPercent = (displayX / img.width) * 100;
       const cropYPercent = (displayY / img.height) * 100;
@@ -618,13 +634,26 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       // We need to check if values are percentages (0-100) or pixels (based on displayed size)
       let cropX, cropY, cropWidth, cropHeight;
       
-      // react-image-crop: when unit is '%', onChange/onComplete return pixel values
-      // based on the displayed image size (img.width x img.height), not percentages
-      // We need to scale these pixel values to natural image size
-      const displayX = finalCrop.x || 0;
-      const displayY = finalCrop.y || 0;
-      const displayWidth = finalCrop.width || 0;
-      const displayHeight = finalCrop.height || 0;
+      // Handle crop values: react-image-crop uses percentages (unit: '%') when crop is set via prop
+      // but returns pixels in onChange/onComplete callbacks
+      // If user didn't adjust crop, finalCrop (from crop state) is in percentage format
+      // If user adjusted crop, finalCrop (from completedCrop) is in pixels
+      let displayX, displayY, displayWidth, displayHeight;
+      
+      if (finalCrop.unit === '%') {
+        // Crop is in percentage format (user didn't adjust - using initial auto-detected crop)
+        // Convert percentages to pixels based on displayed image size
+        displayX = (finalCrop.x / 100) * img.width;
+        displayY = (finalCrop.y / 100) * img.height;
+        displayWidth = (finalCrop.width / 100) * img.width;
+        displayHeight = (finalCrop.height / 100) * img.height;
+      } else {
+        // Crop is already in pixels (user adjusted - from onComplete callback)
+        displayX = finalCrop.x || 0;
+        displayY = finalCrop.y || 0;
+        displayWidth = finalCrop.width || 0;
+        displayHeight = finalCrop.height || 0;
+      }
       
       // Validate displayed crop dimensions
       if (displayWidth <= 0 || displayHeight <= 0 || displayWidth > img.width || displayHeight > img.height) {
