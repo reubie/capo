@@ -11,7 +11,7 @@ import { generateBusinessCard, generateBusinessCardFile } from '../utils/busines
 import ErrorModal from './ErrorModal';
 
 const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null }) => {
-  const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'manual'
+  const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', or 'manual'
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
   const [generatedCardPreview, setGeneratedCardPreview] = useState(null); // Generated card preview for manual entry
@@ -80,7 +80,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
   useEffect(() => {
     if (!visible) {
       // Reset everything when modal closes
-      setActiveTab('upload');
+      setActiveTab('camera');
       setCardImage(null);
       setCardPreview(null);
       setGeneratedCardPreview(null);
@@ -147,8 +147,12 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       
       // Set showForm to true so the form is displayed immediately
       setShowForm(true);
-      // Switch to manual tab since we're editing
-      setActiveTab('manual');
+      // If there's an existing image, default to upload tab; otherwise manual
+      if (initialData.cardImageUrl) {
+        setActiveTab('upload');
+      } else {
+        setActiveTab('manual');
+      }
     }
   }, [visible, initialData]);
 
@@ -199,8 +203,13 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       console.log('  LinkedIn:', extractedData.linkedIn || '(not found)');
       console.groupEnd();
 
+      // Set form data with extracted values
+      // Note: This will replace any existing form data, which is expected after OCR extraction
+      // User can then manually edit the extracted data
       setFormData(extractedData);
       setShowForm(true);
+      
+      console.log('📝 Form data set after OCR extraction, ready for manual editing');
       // No success toast - user can see the extracted data in the form
     } catch (error) {
       console.error('OCR Error:', error);
@@ -218,7 +227,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
 
   // Auto-process OCR when image is uploaded
   useEffect(() => {
-    if (cardImage && cardPreview && activeTab === 'upload' && !showForm && !processingOCR) {
+    if (cardImage && cardPreview && (activeTab === 'camera' || activeTab === 'upload') && !showForm && !processingOCR) {
       // Only process if we haven't processed this image yet
       if (processedImageRef.current !== cardPreview) {
         processedImageRef.current = cardPreview;
@@ -231,6 +240,37 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     }
   }, [cardImage, cardPreview, activeTab, showForm, processingOCR, handleProcessOCR]);
 
+  // Regenerate card preview for manual entry when formData changes
+  useEffect(() => {
+    if (activeTab === 'manual' && showForm) {
+      const { cardOwnerName, companyName, position, email, mobile, phone, companyAddress } = formData;
+      // Only generate if at least name, company, and email are present
+      if (cardOwnerName && companyName && email) {
+        // Generate preview asynchronously
+        generateBusinessCard({
+          cardOwnerName: cardOwnerName,
+          position: position,
+          companyName: companyName,
+          email: email,
+          mobile: mobile,
+          phone: phone,
+          companyAddress: companyAddress,
+        })
+          .then((generatedDataUrl) => {
+            setGeneratedCardPreview(generatedDataUrl);
+          })
+          .catch((error) => {
+            console.error('Error generating card preview:', error);
+            // Don't set preview on error - user will see empty preview
+            setGeneratedCardPreview(null);
+          });
+      } else {
+        // Clear preview if required fields are missing
+        setGeneratedCardPreview(null);
+      }
+    }
+  }, [formData, activeTab, showForm]);
+
   // Handle tab switch
   const handleTabSwitch = (tab) => {
     if (processingOCR) {
@@ -240,7 +280,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     setActiveTab(tab);
     if (tab === 'manual') {
       setShowForm(true);
-    } else if (tab === 'upload') {
+    } else if (tab === 'camera' || tab === 'upload') {
       // If we have a preview from initialData but no uploaded file, allow upload
       // If we have a new uploaded file, keep showing the form
       if (cardPreview && !cardImage && initialData) {
@@ -755,7 +795,13 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       normalizedValue = normalizePhoneNumber(value);
     }
     
-    setFormData(prev => ({ ...prev, [name]: normalizedValue }));
+    // Update form data - preserve all other fields
+    setFormData(prev => {
+      const updated = { ...prev, [name]: normalizedValue };
+      console.log('📝 Form field updated:', name, '→', normalizedValue);
+      console.log('📝 Updated formData:', updated);
+      return updated;
+    });
     setTouchedFields(prev => ({ ...prev, [name]: true }));
 
     // Validate on change
@@ -804,8 +850,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     'cardOwnerName',
     'companyName',
     'position',
-    'phone',
-    'mobile',
+    'phone', // Phone is required
+    'mobile', // Mobile is required
     'email',
     'companyAddress'
   ];
@@ -827,7 +873,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       cardImageUrl: 'Card image'
     };
 
-    // Validate all required fields
+    // Validate all required fields (including phone and mobile)
     requiredFields.forEach(field => {
       if (!formData[field] || !formData[field].trim()) {
         errors[field] = `${fieldLabels[field] || field} is required`;
@@ -855,7 +901,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     }
 
     // Validate cardImageUrl - required in upload mode
-    if (activeTab === 'upload' && (!formData.cardImageUrl || !formData.cardImageUrl.trim())) {
+    if ((activeTab === 'camera' || activeTab === 'upload') && (!formData.cardImageUrl || !formData.cardImageUrl.trim())) {
       errors.cardImageUrl = 'Card image is required when uploading. Please upload an image.';
       isValid = false;
     }
@@ -879,7 +925,17 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     setTouchedFields(touched);
 
     if (!validateForm()) {
-      toast.error('Please fill in all required fields correctly');
+      // Find the first field with an error for a more specific message
+      const firstErrorField = Object.keys(fieldErrors).find(field => fieldErrors[field]);
+      const errorMessage = firstErrorField 
+        ? `Please fix the error in the "${firstErrorField}" field and try again.`
+        : 'Please fill in all required fields correctly before saving.';
+      
+      setErrorModal({
+        visible: true,
+        title: 'Validation Error',
+        message: errorMessage + '\n\nAll fields marked with * are required. Please check your entries and try again.',
+      });
       return;
     }
 
@@ -910,26 +966,75 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     // Log payload for debugging
     console.log('🔍 Card JSON Data:', cardJsonData);
     console.log('🔍 Card Image File:', cardImage);
+    console.log('🔍 Card Preview (existing image URL):', cardPreview);
+    console.log('🔍 Initial Data (editing mode):', !!initialData);
+    console.log('🔍 Active Tab:', activeTab);
     console.log('🔍 LinkedIn value type:', typeof cardJsonData.linkedIn, 'value:', cardJsonData.linkedIn);
     console.log('🔍 Department value type:', typeof cardJsonData.department, 'value:', cardJsonData.department);
     console.log('🔍 OCR Text: (empty string - backend database has length limits)');
 
-    // Validate that file is provided for upload tab
-    if (!cardImage && activeTab === 'upload') {
-      toast.error('Please upload an image file. The API requires a file for card registration.');
-      return;
-    }
-
-    // For manual entry without image, generate a basic business card
-    let fileToSave = cardImage;
-    if (!fileToSave && activeTab === 'manual') {
-      try {
-        // Generate a business card from the entered data
-        fileToSave = await generateBusinessCardFile(cardJsonData, 'business-card.png');
-        console.log('✅ Generated business card file for manual entry');
-      } catch (error) {
-        console.error('Error generating business card file:', error);
-        // Continue without file - parent will handle empty Blob
+    // Handle file/image logic:
+    // 1. If we have a new cardImage (uploaded file), use it
+    // 2. If manual entry, always generate a card from form data
+    // 3. If updating without new image (initialData exists but no cardImage), generate a card from form data
+    // 4. If camera/upload tab but no file and no initialData (new card), show error
+    
+    let fileToSave = cardImage; // Start with uploaded file if any
+    
+    if (!fileToSave) {
+      if (activeTab === 'manual') {
+        // Manual entry: always generate a card from form data
+        try {
+          fileToSave = await generateBusinessCardFile({
+            cardOwnerName: cardJsonData.cardOwnerName,
+            position: cardJsonData.position,
+            companyName: cardJsonData.companyName,
+            email: cardJsonData.email,
+            mobile: cardJsonData.mobile,
+            phone: cardJsonData.phone,
+            companyAddress: cardJsonData.companyAddress,
+          }, 'generated-card.png');
+          console.log('✅ Generated business card file for manual entry');
+        } catch (error) {
+          console.error('Error generating business card file:', error);
+          setErrorModal({
+            visible: true,
+            title: 'Card Generation Error',
+            message: 'Failed to generate business card image. Please try again or upload an image instead.',
+          });
+          return;
+        }
+      } else if (initialData && !cardImage) {
+        // Update mode: user is updating data without changing the image
+        // Generate a new card from the updated form data (will replace existing image)
+        try {
+          fileToSave = await generateBusinessCardFile({
+            cardOwnerName: cardJsonData.cardOwnerName,
+            position: cardJsonData.position,
+            companyName: cardJsonData.companyName,
+            email: cardJsonData.email,
+            mobile: cardJsonData.mobile,
+            phone: cardJsonData.phone,
+            companyAddress: cardJsonData.companyAddress,
+          }, 'updated-card.png');
+          console.log('✅ Generated business card file for update (replacing existing image)');
+        } catch (error) {
+          console.error('Error generating business card file for update:', error);
+          setErrorModal({
+            visible: true,
+            title: 'Card Generation Error',
+            message: 'Failed to generate business card image for update. Please try again or upload a new image.',
+          });
+          return;
+        }
+      } else if ((activeTab === 'camera' || activeTab === 'upload') && !initialData) {
+        // New card on camera/upload tab: requires an image
+        setErrorModal({
+          visible: true,
+          title: 'Image Required',
+          message: 'Please upload an image file for your business card.\n\nYou can:\n• Take a photo using the camera\n• Upload an image file\n• Switch to "Manual Entry" to generate a card automatically',
+        });
+        return;
       }
     }
 
@@ -961,8 +1066,9 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
         <input
           type={type}
           name={name}
-          value={formData[name]}
+          value={formData[name] || ''}
           onChange={handleInputChange}
+          onBlur={() => setTouchedFields(prev => ({ ...prev, [name]: true }))}
           placeholder={placeholder}
           className={`w-full px-3 py-2 rounded-lg border ${
             hasError
@@ -970,7 +1076,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
               : isMissing && isTouched
               ? 'border-orange-300 focus:ring-orange-500'
               : 'border-brand-brown/20 focus:ring-brand-orange/50'
-          } focus:outline-none focus:ring-2 bg-white text-brand-brown placeholder-brand-textSecondary`}
+          } focus:outline-none focus:ring-2 bg-white text-brand-brown placeholder:text-brand-textSecondary/60 placeholder:italic`}
         />
         {hasError && (
           <p className="text-xs text-red-500 flex items-center gap-1">
@@ -1006,6 +1112,20 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-brand-brown/20">
           <button
+            onClick={() => handleTabSwitch('camera')}
+            disabled={processingOCR || uploading}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === 'camera'
+                ? 'text-brand-orange border-b-2 border-brand-orange'
+                : 'text-brand-textSecondary hover:text-brand-brown'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              Take Photo
+            </div>
+          </button>
+          <button
             onClick={() => handleTabSwitch('upload')}
             disabled={processingOCR || uploading}
             className={`px-4 py-2 font-medium transition-colors ${
@@ -1016,7 +1136,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
           >
             <div className="flex items-center gap-2">
               <Upload className="w-4 h-4" />
-              Upload Card
+              Upload
             </div>
           </button>
           <button
@@ -1035,8 +1155,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
           </button>
         </div>
 
-        {/* Upload Tab Content */}
-        {activeTab === 'upload' && (
+        {/* Camera Tab Content - Primary: Take Photo */}
+        {activeTab === 'camera' && (
           <div className="space-y-4">
             {showCropAdjustment && originalImage ? (
               // Crop Adjustment UI
@@ -1166,11 +1286,11 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                       capture="environment"
                       onChange={handleCardUpload}
                       className="hidden"
-                      id="card-upload"
+                      id="card-camera"
                       disabled={processingOCR || uploading}
                     />
                     <label
-                      htmlFor="card-upload"
+                      htmlFor="card-camera"
                       onDragOver={(e) => {
                         // Allow drop to bubble up to parent
                         e.stopPropagation();
@@ -1190,7 +1310,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                       <p className="text-sm font-medium text-brand-brown">
                         {isDragging
                           ? 'Drop image here'
-                          : 'Click to upload, drag & drop, or take a photo'}
+                          : 'Click to take a photo or drag & drop'}
                       </p>
                       <p className="text-xs text-brand-textSecondary mt-1">
                         PNG, JPG up to 5MB
@@ -1270,6 +1390,236 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                 </div>
                 {renderForm()}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Upload Tab Content - Secondary: Drag & Drop/File Picker (No Camera) */}
+        {activeTab === 'upload' && (
+          <div className="space-y-4">
+            {showCropAdjustment && originalImage ? (
+              // Crop Adjustment UI (same as camera tab)
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Adjust Crop Area</p>
+                      <p className="text-xs">
+                        Drag the corners or edges to adjust the crop area. You can increase or reduce the size to include exactly what you need.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden flex items-center justify-center">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(newCrop) => {
+                      if (newCrop && newCrop.unit === '%' && cropImageRef) {
+                        const img = cropImageRef;
+                        const minDisplayWidth = (100 / img.width) * 100;
+                        const minDisplayHeight = (100 / img.height) * 100;
+                        if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
+                          return;
+                        }
+                      }
+                      setCrop(newCrop);
+                    }}
+                    onComplete={(completedCrop) => {
+                      if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+                        setCompletedCrop(completedCrop);
+                        setCrop(completedCrop);
+                      }
+                    }}
+                    aspect={undefined}
+                    minWidth={100}
+                    minHeight={100}
+                    className="max-w-full"
+                  >
+                    <img
+                      ref={setCropImageRef}
+                      src={originalImage}
+                      alt="Original card"
+                      style={{ maxWidth: '100%', maxHeight: '400px', display: 'block', margin: '0 auto' }}
+                      onLoad={() => {
+                        if (!crop && cropImageRef) {
+                          const defaultCrop = {
+                            unit: '%',
+                            x: 10,
+                            y: 10,
+                            width: 80,
+                            height: 80,
+                          };
+                          setCrop(defaultCrop);
+                        }
+                      }}
+                    />
+                  </ReactCrop>
+                </div>
+                
+                <div className="flex gap-3 justify-between items-center">
+                  <button
+                    onClick={handleSkipCrop}
+                    disabled={processingCrop || processingOCR || uploading}
+                    className="px-4 py-2 text-sm font-medium text-brand-brown border border-brand-brown/30 rounded-lg hover:bg-brand-backgroundAlt transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title="Use original image without cropping"
+                  >
+                    <X className="w-4 h-4" />
+                    Skip Crop (Use Original)
+                  </button>
+                  
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={handleCropRetake}
+                      disabled={processingCrop || processingOCR || uploading}
+                      className="px-4 py-2 border border-brand-brown/30 text-brand-brown rounded-lg font-medium hover:bg-brand-backgroundAlt transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Retake
+                    </button>
+                    <button
+                      onClick={handleCropConfirm}
+                      disabled={processingCrop || !crop}
+                      className="px-6 py-2 bg-brand-orange text-white rounded-lg font-medium hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {processingCrop ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Looks Good
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {!showForm ? (
+                  <div className="space-y-4">
+                    {!cardPreview ? (
+                      <div
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`border-2 border-dashed rounded-lg p-12 md:p-16 text-center transition-colors bg-white min-h-[300px] md:min-h-[400px] flex flex-col items-center justify-center ${
+                          isDragging
+                            ? 'border-brand-orange bg-brand-orange/5'
+                            : 'border-brand-brown/30 hover:border-brand-brown/50'
+                        }`}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCardUpload}
+                          className="hidden"
+                          id="card-upload"
+                          disabled={processingOCR || uploading}
+                        />
+                        <label
+                          htmlFor="card-upload"
+                          onDragOver={(e) => {
+                            e.stopPropagation();
+                          }}
+                          className={`cursor-pointer flex flex-col items-center gap-3 ${
+                            processingOCR || uploading ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <div className="p-4 bg-brand-orange/10 rounded-full">
+                            <Upload className="w-8 h-8 text-brand-orange" />
+                          </div>
+                          <p className="text-sm font-medium text-brand-brown">
+                            {isDragging
+                              ? 'Drop image here'
+                              : 'Click to upload or drag & drop'}
+                          </p>
+                          <p className="text-xs text-brand-textSecondary mt-1">
+                            PNG, JPG up to 5MB
+                          </p>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                          <img
+                            src={cardPreview}
+                            alt="Card preview"
+                            className="max-w-full max-h-64 object-contain"
+                            style={{ mixBlendMode: 'multiply' }}
+                          />
+                          <button
+                            onClick={() => {
+                              setCardPreview(null);
+                              setCardImage(null);
+                              setFormData(prev => ({ ...prev, cardImageUrl: '' }));
+                              setShowForm(false);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                              }
+                            }}
+                            disabled={processingCrop || processingOCR || uploading}
+                            className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+                          >
+                            <X className="w-4 h-4 text-brand-brown" />
+                          </button>
+                        </div>
+                        {(processingCrop || processingOCR) && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                              <div className="text-sm text-blue-800">
+                                <p className="font-medium">
+                                  {processingCrop 
+                                    ? 'Detecting business card and removing background...'
+                                    : 'Processing image and extracting information...'}
+                                </p>
+                                <p className="text-xs mt-1">This may take a few moments</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cardPreview && (
+                      <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                        <img
+                          src={cardPreview}
+                          alt="Card preview"
+                          className="max-w-full max-h-48 object-contain"
+                          style={{ mixBlendMode: 'multiply' }}
+                        />
+                      </div>
+                    )}
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-amber-900">
+                          <p className="font-semibold mb-2">⚠️ Please Review Extracted Information</p>
+                          <p className="text-xs mb-2 leading-relaxed">
+                            <span className="font-medium">Important:</span> Please carefully review the extracted information below and compare it with your business card image to ensure all data is accurate. OCR extraction may have errors, so it's essential to verify each field matches what's actually on the card.
+                          </p>
+                          <p className="text-xs">
+                            All fields marked with{' '}
+                            <span className="text-red-500 font-medium">*</span> are required.
+                            Fill in or correct any missing or incorrect fields before saving to avoid discrepancies.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {renderForm()}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1361,23 +1711,25 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Row 1: Full Name | Company Name */}
-          {renderField('cardOwnerName', 'Full Name', 'text', 'John Doe', true)}
-          {renderField('companyName', 'Company Name', 'text', 'Acme Corporation', true)}
+          {renderField('cardOwnerName', 'Full Name', 'text', 'JioME App', true)}
+          {renderField('companyName', 'Company Name', 'text', 'JioME Group', true)}
           
           {/* Row 2: Position/Title | Email */}
-          {renderField('position', 'Position/Title', 'text', 'Senior Manager', true)}
-          {renderField('email', 'Email', 'email', 'john.doe@company.com', true)}
+          {renderField('position', 'Position/Title', 'text', 'Make your dreams come true', true)}
+          {renderField('email', 'Email', 'email', 'support@jiomegroup.com', true)}
           
           {/* Row 3: Mobile | Phone */}
-          {renderField('mobile', 'Mobile', 'tel', '+65 9123 4567', true)}
-          {renderField('phone', 'Phone', 'tel', '+65 6123 4567', true)}
+          {renderField('mobile', 'Mobile', 'tel', 'e.g., +65 9123 4567', true)}
+          {renderField('phone', 'Phone', 'tel', 'e.g., +65 6123 4567', true)}
         </div>
         
-        {/* Row 4: LinkedIn Profile (optional, full width) */}
-        {renderField('linkedIn', 'LinkedIn Profile', 'url', 'https://linkedin.com/in/johndoe', false)}
+        {/* Row 4: LinkedIn Profile (optional, full width) - Only show if there's a value */}
+        {formData.linkedIn && formData.linkedIn.trim() && (
+          renderField('linkedIn', 'LinkedIn Profile', 'url', '', false)
+        )}
         
         {/* Row 5: Company Address (full width) */}
-        {renderField('companyAddress', 'Company Address', 'text', '123 Business Street, Singapore 123456', true)}
+        {renderField('companyAddress', 'Company Address', 'text', 'e.g., 123 Business Street, Singapore 123456', true)}
         
         {/* Hidden fields: department - not displayed but still in formData for backend */}
         {/* OCR text is processed internally but not displayed to user - sent as empty string to backend */}

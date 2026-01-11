@@ -169,8 +169,8 @@ const Register = () => {
         title: 'Validation Error',
         message: 'Please fill in all fields correctly before sending OTP.',
       });
-      return;
-    }
+        return;
+      }
 
     setSendingOTP(true);
     setOtpError('');
@@ -226,8 +226,8 @@ const Register = () => {
   const handleVerifyOTP = async (otp = otpCode) => {
     if (!otp || otp.length !== 6) {
       setOtpError('Please enter a valid 6-digit OTP code');
-      return;
-    }
+        return;
+      }
 
     setVerifyingOTP(true);
     setOtpError('');
@@ -254,7 +254,7 @@ const Register = () => {
           title: 'OTP Session Expired',
           message: error.message + '\n\nPlease request a new OTP code using the "Resend OTP" button.',
         });
-      } else {
+    } else {
         // Show inline error for validation errors
         setOtpError(error.message || 'Invalid OTP code. Please check and try again.');
       }
@@ -271,21 +271,24 @@ const Register = () => {
       // Format phone number for backend (E.164 format)
       const formattedPhone = formatPhoneForBackend(formData.phone);
 
+      // Submit registration with Firebase token
+      // Backend will verify the token and handle account creation
       const payload = {
-        name: formData.name.trim(),
         phone: formattedPhone,
         password: formData.password,
-        firebaseIdToken: firebaseIdToken, // Firebase ID token for backend verification
+        name: formData.name.trim(),
         role: 'USER', // Default role
+        firebaseToken: firebaseIdToken, // Firebase ID token for backend verification
       };
 
       console.group('📝 REGISTER REQUEST (with Firebase token)');
-      console.log('Payload →', { ...payload, firebaseIdToken: '***' }); // Don't log full token
+      console.log('Payload →', { ...payload, firebaseToken: '***' }); // Don't log full token
       console.groupEnd();
 
       toast.info('Creating your account...', { autoClose: 2000 });
 
       // Send registration request to backend with Firebase token
+      // Backend will verify the token and handle account creation/login
       const response = await authAPI.signup(payload, {
         meta: { loadingText: 'Creating your account...' },
       });
@@ -300,28 +303,17 @@ const Register = () => {
 
       if (result.success) {
         toast.success('Account created successfully 🎉');
-
-        // Check if registration response includes an access token (auto-login)
-        if (result.data?.accessToken) {
-          // Auto-login: Store token
-          setToken(result.data.accessToken);
-          clearJustLoggedOutFlag();
-          
-          // Clear OTP state
-          clearRecaptcha();
-          
-          // Redirect directly to intended destination (authenticated experience)
-          setTimeout(() => {
-            navigate(intendedDestination, { replace: true });
-          }, 1500);
-        } else {
-          // No token provided - redirect to login page
-          setTimeout(() => {
-            navigate('/login', { 
-              state: { from: intendedDestination, reason: 'after_signup' }
-            });
-          }, 1500);
-        }
+        
+        // Clear OTP state
+        clearRecaptcha();
+        
+        // Backend handles verification and login - redirect to login page
+        // User will need to login with their phone number and password
+        setTimeout(() => {
+          navigate('/login', { 
+            state: { from: intendedDestination, reason: 'after_signup' }
+          });
+        }, 1500);
       } else {
         toast.error(result.message || 'Registration failed. Please try again.');
       }
@@ -488,38 +480,38 @@ const Register = () => {
         className="relative z-10 w-full max-w-md laptop:max-w-lg bg-brand-cardLight rounded-xl shadow-2xl p-6 border border-brand-brown/20"
         onClick={(e) => e.stopPropagation()} // Prevent background click when clicking inside card
       >
-        <div className="text-center mb-6">
+          <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-brand-brown mb-2">
             {step === 'register' ? 'Create Account' : 'Verify OTP'}
-          </h1>
+            </h1>
           <p className="text-sm text-brand-textSecondary">
             {step === 'register' 
               ? 'Join Show you care today' 
               : `Enter the 6-digit code sent to ${formData.phone}`}
-          </p>
-        </div>
+            </p>
+          </div>
 
         {/* REGISTRATION FORM */}
         {step === 'register' ? (
           <form onSubmit={(e) => { e.preventDefault(); handleSendOTP(); }} className="space-y-4">
-            <div>
+                  <div>
               <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">
                 <User className="w-4 h-4" /> Full Name
-              </label>
-              <input
-                name="name"
+                    </label>
+                    <input
+                      name="name"
                 placeholder="Enter your full name"
-                value={formData.name}
-                onChange={handleInputChange}
+                      value={formData.name}
+                      onChange={handleInputChange}
                 className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
                 disabled={sendingOTP}
-              />
+                    />
               {fieldErrors.name && (
                 <p className="text-red-500 text-sm mt-1">
                   {fieldErrors.name}
                 </p>
               )}
-            </div>
+                  </div>
 
             <PhoneInput
               value={formData.phone}
@@ -534,20 +526,20 @@ const Register = () => {
               error={fieldErrors.phone}
               label="Phone Number"
               placeholder="Enter your phone number"
-              required
+                      required
               disabled={sendingOTP}
-            />
+                    />
 
-            <div>
+                  <div>
               <label className="flex items-center gap-2 mb-2 text-sm text-brand-brown font-medium">
                 <Lock className="w-4 h-4" /> Password
-              </label>
-              <input
+                    </label>
+                    <input
                 name="password"
                 type="password"
                 placeholder="Enter your password"
                 value={formData.password}
-                onChange={handleInputChange}
+                      onChange={handleInputChange}
                 className="w-full px-4 py-3 border rounded-lg border-brand-brown/20 bg-white text-brand-brown placeholder-brand-textSecondary focus:outline-none focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange"
                 disabled={sendingOTP}
               />
@@ -586,8 +578,8 @@ const Register = () => {
               </div>
             )}
 
-            <button
-              type="submit"
+                  <button
+                    type="submit"
               disabled={sendingOTP}
               className="w-full py-3 bg-brand-orange text-brand-textOnDark font-bold rounded-lg hover:bg-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
@@ -599,7 +591,7 @@ const Register = () => {
               ) : (
                 'Send OTP'
               )}
-            </button>
+                        </button>
           </form>
         ) : (
           /* OTP VERIFICATION FORM */
@@ -615,11 +607,11 @@ const Register = () => {
                     </p>
                     <p className="text-xs text-green-700">
                       We've sent a 6-digit verification code to <span className="font-semibold">{formData.phone}</span>. Please check your SMS messages and enter the code below.
-                    </p>
-                  </div>
+                            </p>
+                          </div>
                 </div>
-              </div>
-            )}
+                      </div>
+                    )}
 
             {/* Loading Message - OTP Being Sent */}
             {sendingOTP && (
@@ -681,7 +673,7 @@ const Register = () => {
                 Change Phone Number
               </button>
 
-            <button
+              <button
               onClick={handleResendOTP}
               disabled={resendCooldown > 0 || sendingOTP || verifyingOTP}
               className="flex items-center gap-2 text-sm text-brand-orange hover:text-brand-orangeLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
@@ -697,31 +689,31 @@ const Register = () => {
                   {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
                 </>
               )}
-            </button>
+              </button>
             </div>
           </div>
-        )}
+          )}
 
         <div className="mt-6 pt-6 border-t border-brand-brown/20 text-center">
           <p className="text-sm text-brand-textSecondary mb-2">
-            Already have an account?{' '}
-            <button
+              Already have an account?{' '}
+              <button
               onClick={() => navigate('/login', { 
                 state: { from: intendedDestination } 
               })}
               className="text-brand-orange font-semibold hover:underline"
-            >
-              Login
-            </button>
-          </p>
-          <button 
-            onClick={() => navigate('/')} 
+              >
+                Login
+              </button>
+            </p>
+            <button
+              onClick={() => navigate('/')}
             className="text-sm text-brand-brown font-medium hover:underline"
-          >
-            Back to Home
-          </button>
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Error Modal */}
       <ErrorModal

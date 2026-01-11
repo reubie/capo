@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin } from 'lucide-react';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Share2, MessageCircle, X } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompression';
@@ -20,6 +20,7 @@ const Profile = () => {
   const [loadingCard, setLoadingCard] = useState(true);
   const [profilePicture, setProfilePicture] = useState(null);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (!hasValidToken()) {
@@ -132,6 +133,82 @@ const Profile = () => {
     setTimeout(() => {
       logout();
     }, 500);
+  };
+
+  /* =========================
+     BUSINESS CARD SHARING
+  ========================= */
+  const formatBusinessCardText = () => {
+    if (!myCard) return '';
+    
+    let text = `📇 ${myCard.cardOwnerName || 'Business Card'}\n\n`;
+    
+    if (myCard.companyName) {
+      text += `🏢 ${myCard.companyName}\n`;
+    }
+    
+    if (myCard.position) {
+      text += `💼 ${myCard.position}\n`;
+    }
+    
+    if (myCard.mobile || myCard.phone) {
+      text += `📱 ${normalizePhoneNumber(myCard.mobile || myCard.phone)}\n`;
+    }
+    
+    if (myCard.email) {
+      text += `✉️ ${myCard.email}\n`;
+    }
+    
+    if (myCard.companyAddress) {
+      text += `📍 ${myCard.companyAddress}\n`;
+    }
+    
+    return text.trim();
+  };
+
+  const shareToWhatsApp = () => {
+    if (!myCard) return;
+    const text = formatBusinessCardText();
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    setShowShareModal(false);
+    toast.success('Opening WhatsApp...');
+  };
+
+  const shareToInstagram = () => {
+    if (!myCard) return;
+    // Instagram doesn't support direct sharing via URL, so we'll copy to clipboard
+    const text = formatBusinessCardText();
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success('Business card copied! You can now paste it in Instagram.');
+      setShowShareModal(false);
+    }).catch(() => {
+      toast.error('Failed to copy. Please try again.');
+    });
+  };
+
+  const shareToKakao = () => {
+    if (!myCard) return;
+    // KakaoTalk sharing - using Kakao Link API would require SDK, for now we'll use SMS fallback
+    const text = formatBusinessCardText();
+    // Try to open KakaoTalk if available
+    const kakaoUrl = `kakaotalk://send?text=${encodeURIComponent(text)}`;
+    window.location.href = kakaoUrl;
+    
+    // Fallback: If Kakao doesn't open, show message
+    setTimeout(() => {
+      toast.info('If KakaoTalk didn\'t open, please use SMS sharing instead.');
+    }, 1000);
+    setShowShareModal(false);
+  };
+
+  const shareViaSMS = () => {
+    if (!myCard) return;
+    const text = formatBusinessCardText();
+    // SMS sharing - opens default SMS app
+    window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+    setShowShareModal(false);
+    toast.success('Opening SMS...');
   };
 
   const handleProfilePictureUpload = async (e) => {
@@ -259,6 +336,24 @@ const Profile = () => {
             <h1 className="text-sm xs:text-base sm:text-lg md:text-xl tablet:text-2xl laptop:text-3xl font-bold text-brand-orange truncate min-w-0">
               Profile
             </h1>
+          </div>
+          
+          {/* Gifticon and Network Icons - Top Right */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => navigate('/gifticon')}
+              className="p-2 xs:p-2.5 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center"
+              title="Gifticon"
+            >
+              <Gift className="w-4 h-4 xs:w-5 xs:h-5" />
+            </button>
+            <button
+              onClick={() => navigate('/network')}
+              className="p-2 xs:p-2.5 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center"
+              title="Network"
+            >
+              <Network className="w-4 h-4 xs:w-5 xs:h-5" />
+            </button>
           </div>
         </div>
       </div>
@@ -462,51 +557,59 @@ const Profile = () => {
               </div>
             ) : (
               // Show prominent call-to-action if no card (new user scenario)
-              <div className="bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 rounded-xl border-2 border-brand-orange/30 p-6 xs:p-8">
+              <div className="bg-gradient-to-br from-brand-orange/10 to-brand-orange/5 rounded-xl border-2 border-brand-orange/30 p-4 xs:p-5">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 xs:w-20 xs:h-20 rounded-full bg-brand-orange/20 flex items-center justify-center mb-4">
-                    <CreditCard className="w-8 h-8 xs:w-10 xs:h-10 text-brand-orange" />
+                  <div className="w-12 h-12 xs:w-14 xs:h-14 rounded-full bg-brand-orange/20 flex items-center justify-center mb-3">
+                    <CreditCard className="w-6 h-6 xs:w-7 xs:h-7 text-brand-orange" />
                   </div>
                   
-                  <h3 className="text-xl xs:text-2xl font-bold text-brand-brown mb-2">
+                  <h3 className="text-lg xs:text-xl font-bold text-brand-brown mb-2">
                     Complete Your Profile
                   </h3>
                   
-                  <p className="text-sm xs:text-base text-brand-textSecondary mb-6 max-w-md">
-                    Register your business card to share your contact information with your network. 
-                    You can upload a photo of your card or enter the details manually.
+                  <p className="text-xs xs:text-sm text-brand-textSecondary mb-4 max-w-md">
+                    Register your business card to share your contact information with your network.
                   </p>
                   
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-4">
                     <button
                       onClick={() => setShowMyCardModal(true)}
-                      className="px-6 py-3 bg-brand-orange text-brand-textOnDark rounded-lg font-semibold hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2 text-base shadow-lg"
+                      className="px-5 py-2.5 bg-brand-orange text-brand-textOnDark rounded-lg font-semibold hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2 text-sm xs:text-base shadow-lg"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-4 h-4 xs:w-5 xs:h-5" />
                       Register My Business Card
                     </button>
                   </div>
                   
-                  <div className="mt-6 pt-6 border-t border-brand-orange/20 w-full">
-                    <p className="text-xs text-brand-textSecondary mb-3">
+                  <div className="mt-4 pt-4 border-t border-brand-orange/20 w-full">
+                    <p className="text-xs text-brand-textSecondary mb-2.5">
                       What you can do:
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                    <div className="space-y-2.5 text-left">
                       <div className="flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <div className="w-4 h-4 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-xs font-bold text-brand-orange">1</span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-brand-brown">Upload Card Photo</p>
-                          <p className="text-xs text-brand-textSecondary">Take a photo and we'll extract the details automatically</p>
+                          <p className="text-xs xs:text-sm font-medium text-brand-brown">Take a Picture</p>
+                          <p className="text-xs text-brand-textSecondary">Take a photo of your business card and we'll extract the details automatically</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <div className="w-4 h-4 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-xs font-bold text-brand-orange">2</span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-brand-brown">Manual Entry</p>
+                          <p className="text-xs xs:text-sm font-medium text-brand-brown">Upload or Drag & Drop</p>
+                          <p className="text-xs text-brand-textSecondary">Upload an existing photo or drag and drop an image file</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-4 h-4 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-brand-orange">3</span>
+                        </div>
+                        <div>
+                          <p className="text-xs xs:text-sm font-medium text-brand-brown">Manual Entry</p>
                           <p className="text-xs text-brand-textSecondary">Enter your business card details manually</p>
                         </div>
                       </div>
@@ -517,28 +620,38 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="space-y-3 pt-6 border-t border-brand-brown/20">
-            <button
-              onClick={() => navigate('/gifticon')}
-              className="w-full py-3 px-4 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2"
-            >
-              Go to Gifticon
-            </button>
-            <button
-              onClick={() => navigate('/network')}
-              className="w-full py-3 px-4 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2"
-            >
-              Go to Network
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-5 h-5" />
-              Logout
-            </button>
-          </div>
+          {/* Actions - Share Business Card (only show if card exists) */}
+          {myCard && (
+            <div className="space-y-3 pt-6 border-t border-brand-brown/20">
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="w-full py-3 px-4 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center gap-2"
+              >
+                <Share2 className="w-5 h-5" />
+                Share Business Card
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-5 h-5" />
+                Logout
+              </button>
+            </div>
+          )}
+
+          {/* Actions - No Card Yet (only show logout) */}
+          {!myCard && !loadingCard && (
+            <div className="space-y-3 pt-6 border-t border-brand-brown/20">
+              <button
+                onClick={handleLogout}
+                className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-5 h-5" />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -562,6 +675,70 @@ const Profile = () => {
         uploading={uploading}
         initialData={myCard} // Pass existing card data for editing
       />
+
+      {/* Share Business Card Modal */}
+      {showShareModal && myCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-brand-cardLight rounded-2xl w-full max-w-md p-6 relative shadow-2xl border border-brand-brown/20">
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 text-brand-textSecondary hover:text-brand-brown transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-brand-orange/20 flex items-center justify-center mb-4">
+                <Share2 className="w-8 h-8 text-brand-orange" />
+              </div>
+              <h3 className="text-2xl font-bold text-brand-brown mb-2">
+                Share Business Card
+              </h3>
+              <p className="text-sm text-brand-textSecondary">
+                Choose how you'd like to share your business card
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* WhatsApp */}
+              <button
+                onClick={shareToWhatsApp}
+                className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Share via WhatsApp
+              </button>
+
+              {/* Instagram */}
+              <button
+                onClick={shareToInstagram}
+                className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                <Share2 className="w-5 h-5" />
+                Share via Instagram
+              </button>
+
+              {/* KakaoTalk */}
+              <button
+                onClick={shareToKakao}
+                className="w-full py-3 px-4 bg-yellow-400 text-brand-brown rounded-lg font-medium hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Share via KakaoTalk
+              </button>
+
+              {/* SMS */}
+              <button
+                onClick={shareViaSMS}
+                className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Phone className="w-5 h-5" />
+                Share via SMS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

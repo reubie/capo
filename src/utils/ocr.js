@@ -98,21 +98,26 @@ export const extractTextFromImage = async (file) => {
         const processedImageUrl = await preprocessImageForOCR(imageDataUrl);
         
         // Enhanced Tesseract.js configuration for better accuracy on business cards
+        // Supports English (primary), Korean, Japanese, and other languages
         // PSM 6 = Assume a single uniform block of text (best for business cards)
         // PSM 11 = Sparse text (fallback if 6 doesn't work well)
         let text = '';
         
+        // Language configuration: English first, then Korean, Japanese, and others
+        // Tesseract.js will prioritize English but also recognize Korean and Japanese characters
+        const languages = 'eng+kor+jpn'; // English + Korean + Japanese
+        
         // Try PSM 6 first (single block - best for business cards)
         try {
-          console.log('📖 Running OCR with PSM 6 (single uniform block)...');
-          const result1 = await Tesseract.recognize(processedImageUrl, 'eng', {
+          console.log('📖 Running OCR with PSM 6 (single uniform block) - Languages: English (primary), Korean, Japanese...');
+          const result1 = await Tesseract.recognize(processedImageUrl, languages, {
             logger: (m) => {
               if (m.status === 'recognizing text' && m.progress === 1) {
                 console.log('✅ OCR completed with PSM 6');
               }
             },
             tessedit_pageseg_mode: '6', // Single uniform block of text
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,+-()[]/|\\:; \n\t',
+            // Note: Removed char_whitelist to allow Korean, Japanese, and other language characters
             workerOptions: {
               cacheMethod: 'none',
             },
@@ -123,14 +128,15 @@ export const extractTextFromImage = async (file) => {
           console.warn('⚠️ PSM 6 failed, trying PSM 11 (sparse text)...', err1);
           // Fallback to PSM 11 (sparse text - better for cards with scattered text)
           try {
-            const result2 = await Tesseract.recognize(processedImageUrl, 'eng', {
+            console.log('📖 Running OCR with PSM 11 (sparse text) - Languages: English (primary), Korean, Japanese...');
+            const result2 = await Tesseract.recognize(processedImageUrl, languages, {
               logger: (m) => {
                 if (m.status === 'recognizing text' && m.progress === 1) {
                   console.log('✅ OCR completed with PSM 11');
                 }
               },
               tessedit_pageseg_mode: '11', // Sparse text
-              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,+-()[]/|\\:; \n\t',
+              // Note: Removed char_whitelist to allow Korean, Japanese, and other language characters
               workerOptions: {
                 cacheMethod: 'none',
               },
@@ -138,19 +144,36 @@ export const extractTextFromImage = async (file) => {
             text = result2.data.text;
             console.log('📄 OCR Text length:', text.length);
           } catch (err2) {
-            console.error('❌ Both PSM modes failed, using default...', err2);
-            // Final fallback to default
-            const result3 = await Tesseract.recognize(processedImageUrl, 'eng', {
-              logger: (m) => {
-                if (m.status === 'recognizing text' && m.progress === 1) {
-                  console.log('✅ OCR completed with default settings');
-                }
-              },
-              workerOptions: {
-                cacheMethod: 'none',
-              },
-            });
-            text = result3.data.text;
+            console.error('❌ Both PSM modes failed, trying default with multiple languages...', err2);
+            // Final fallback to default with multiple languages
+            try {
+              const result3 = await Tesseract.recognize(processedImageUrl, languages, {
+                logger: (m) => {
+                  if (m.status === 'recognizing text' && m.progress === 1) {
+                    console.log('✅ OCR completed with default settings');
+                  }
+                },
+                workerOptions: {
+                  cacheMethod: 'none',
+                },
+              });
+              text = result3.data.text;
+              console.log('📄 OCR Text length:', text.length);
+            } catch (err3) {
+              console.error('❌ All OCR attempts failed, trying English only as last resort...', err3);
+              // Last resort: English only
+              const result4 = await Tesseract.recognize(processedImageUrl, 'eng', {
+                logger: (m) => {
+                  if (m.status === 'recognizing text' && m.progress === 1) {
+                    console.log('✅ OCR completed with English only (fallback)');
+                  }
+                },
+                workerOptions: {
+                  cacheMethod: 'none',
+                },
+              });
+              text = result4.data.text;
+            }
           }
         }
         
@@ -935,9 +958,48 @@ export const extractCompany = (text) => {
     return false;
   };
   
+  // Extract email early to use domain as company name if needed
+  const email = extractEmail(text);
+  
+  // Helper to get company name from email domain
+  const getCompanyFromEmailDomain = () => {
+    if (!email) return null;
+    
+    const emailMatch = email.match(/@([a-zA-Z0-9-]+)\./);
+    if (emailMatch) {
+      const domain = emailMatch[1];
+      // Skip common generic domains
+      if (!['gmail', 'yahoo', 'hotmail', 'outlook', 'icloud', 'mail'].includes(domain.toLowerCase())) {
+        // Capitalize first letter and format as company name (e.g., "jiomegroup" -> "Jiomegroup")
+        const companyName = domain.charAt(0).toUpperCase() + domain.slice(1).toLowerCase();
+        return companyName;
+      }
+    }
+    return null;
+  };
+  
+  // Helper to check if a string looks like a URL/domain
+  const looksLikeURL = (str) => {
+    if (!str) return false;
+    // Check for URL patterns: "www", ".com", ".net", etc.
+    return /(www\s*|[a-z0-9-]+\s*\.(?:com|net|org|edu|gov|co|io|ai|app|group))/i.test(str);
+  };
+  
   for (const line of lines) {
     let trimmedLine = line.trim();
     if (!trimmedLine) continue;
+    
+    // PRIORITY: Skip lines that look like URLs/domains (e.g., "www jiomeapp.com", "jiomeapp.com")
+    // Use email domain as company name instead
+    if (looksLikeURL(trimmedLine) && !companySuffixes.test(trimmedLine)) {
+      // This line is a URL/domain - use email domain as company name if available
+      const companyFromEmail = getCompanyFromEmailDomain();
+      if (companyFromEmail) {
+        return companyFromEmail;
+      }
+      // If no email, continue searching for actual company name
+      continue;
+    }
     
     // Skip lines that start with "-" followed by garbage OCR text (e.g., "- Feo sas Specs PAO")
     // These are often OCR errors that shouldn't be considered as company names
@@ -989,11 +1051,23 @@ export const extractCompany = (text) => {
           if (looksLikeName) {
             // Skip first 2 words (the name), take the rest (the company part)
             const companyWords = beforeWords.slice(2);
-            return companyWords.join(' ') + ' ' + suffixPart;
+            const extractedCompany = companyWords.join(' ') + ' ' + suffixPart;
+            // Check if extracted company looks like a URL - if so, use email domain instead
+            if (looksLikeURL(extractedCompany)) {
+              const companyFromEmail = getCompanyFromEmailDomain();
+              if (companyFromEmail) return companyFromEmail;
+            }
+            return extractedCompany;
           } else {
             // Not sure, take last 2-3 words before the suffix
             const companyWords = beforeWords.slice(-(Math.min(3, beforeWords.length - 1)));
-            return companyWords.join(' ') + ' ' + suffixPart;
+            const extractedCompany = companyWords.join(' ') + ' ' + suffixPart;
+            // Check if extracted company looks like a URL - if so, use email domain instead
+            if (looksLikeURL(extractedCompany)) {
+              const companyFromEmail = getCompanyFromEmailDomain();
+              if (companyFromEmail) return companyFromEmail;
+            }
+            return extractedCompany;
           }
         }
         // If 3 words, might be "Name Company Ltd" - take last word or two
@@ -1005,7 +1079,13 @@ export const extractCompany = (text) => {
           
           if (isLikelyName) {
             // Extract just the company part (last word)
-            return beforeWords[2] + ' ' + suffixPart;
+            const extractedCompany = beforeWords[2] + ' ' + suffixPart;
+            // Check if extracted company looks like a URL - if so, use email domain instead
+            if (looksLikeURL(extractedCompany)) {
+              const companyFromEmail = getCompanyFromEmailDomain();
+              if (companyFromEmail) return companyFromEmail;
+            }
+            return extractedCompany;
           }
         }
         
@@ -1014,6 +1094,11 @@ export const extractCompany = (text) => {
         let cleaned = line.replace(/\bNetapp\b/gi, 'NetApp');
         cleaned = cleaned.replace(/\bLt\.?\s*$/i, 'Ltd.');
         cleaned = cleaned.replace(/\bLtd\s*$/i, 'Ltd.');
+        // Check if cleaned company looks like a URL - if so, use email domain instead
+        if (looksLikeURL(cleaned)) {
+          const companyFromEmail = getCompanyFromEmailDomain();
+          if (companyFromEmail) return companyFromEmail;
+        }
         return cleaned;
       }
     }
@@ -1038,31 +1123,21 @@ export const extractCompany = (text) => {
         }
         // Must have 3+ words or be longer to be a company
         if (words.length >= 3 || trimmedLine.length > 12) {
+          // Check if this looks like a URL - if so, use email domain instead
+          if (looksLikeURL(trimmedLine)) {
+            const companyFromEmail = getCompanyFromEmailDomain();
+            if (companyFromEmail) return companyFromEmail;
+          }
           return trimmedLine;
         }
       }
     }
   }
   
-  // FALLBACK: Extract company name from email domain or website URL
-  // This handles edge cases where company name isn't explicitly stated
-  const email = extractEmail(text);
-  if (email) {
-    const emailMatch = email.match(/@([a-zA-Z0-9-]+)\./);
-    if (emailMatch) {
-      const domain = emailMatch[1];
-      // Skip common generic domains
-      if (!['gmail', 'yahoo', 'hotmail', 'outlook', 'icloud', 'mail'].includes(domain.toLowerCase())) {
-        // Capitalize first letter and format as company name
-        const companyName = domain.charAt(0).toUpperCase() + domain.slice(1).toLowerCase();
-        // Remove common suffixes that might be in domain
-        const cleanName = companyName.replace(/(group|app|com|net|org|co|io)$/i, '');
-        if (cleanName.length >= 3) {
-          return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
-        }
-        return companyName;
-      }
-    }
+  // If no company name found in text, try email domain as fallback
+  const companyFromEmail = getCompanyFromEmailDomain();
+  if (companyFromEmail) {
+    return companyFromEmail;
   }
   
   // Also check website URL for company name

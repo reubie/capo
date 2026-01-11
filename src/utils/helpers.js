@@ -11,6 +11,110 @@ export function generateQRCode(data) {
 }
 
 /**
+ * Country code to country name mapping
+ * Maps country codes to their full country names for sorting
+ */
+export const COUNTRY_CODE_TO_NAME = {
+  '1': 'United States',
+  '20': 'Egypt',
+  '27': 'South Africa',
+  '31': 'Netherlands',
+  '32': 'Belgium',
+  '33': 'France',
+  '34': 'Spain',
+  '39': 'Italy',
+  '41': 'Switzerland',
+  '44': 'United Kingdom',
+  '45': 'Denmark',
+  '46': 'Sweden',
+  '47': 'Norway',
+  '49': 'Germany',
+  '52': 'Mexico',
+  '54': 'Argentina',
+  '55': 'Brazil',
+  '60': 'Malaysia',
+  '61': 'Australia',
+  '62': 'Indonesia',
+  '63': 'Philippines',
+  '64': 'New Zealand',
+  '65': 'Singapore',
+  '66': 'Thailand',
+  '81': 'Japan',
+  '82': 'South Korea',
+  '84': 'Vietnam',
+  '86': 'China',
+  '90': 'Turkey',
+  '91': 'India',
+  '92': 'Pakistan',
+  '94': 'Sri Lanka',
+  '212': 'Morocco',
+  '233': 'Ghana',
+  '234': 'Nigeria',
+  '254': 'Kenya',
+  '255': 'Tanzania',
+  '256': 'Uganda',
+  '351': 'Portugal',
+  '353': 'Ireland',
+  '358': 'Finland',
+  '880': 'Bangladesh',
+  '966': 'Saudi Arabia',
+  '971': 'United Arab Emirates',
+  '972': 'Israel',
+};
+
+/**
+ * Extract country code from phone number and return country name
+ * @param {string} phone - Phone number (normalized format like "+82 10 3652 8758" or "+254 720 637771")
+ * @returns {string} Country name or country code if name not found
+ */
+export function getCountryFromPhone(phone) {
+  if (!phone || typeof phone !== 'string') return 'Unknown';
+  if (phone.trim() === '-') return 'Unknown';
+  
+  // Extract digits after + sign (country code + number part)
+  // Remove spaces to get clean digits
+  const digits = phone.replace(/^\+/, '').replace(/\s+/g, '');
+  if (!digits || digits.length === 0) return 'Unknown';
+  
+  // Try to match country codes from longest to shortest (to handle multi-digit codes correctly)
+  // Check 4-digit codes first (e.g., 880, 966, 971, 972)
+  if (digits.length >= 4) {
+    const fourDigit = digits.substring(0, 4);
+    if (COUNTRY_CODE_TO_NAME[fourDigit]) {
+      return COUNTRY_CODE_TO_NAME[fourDigit];
+    }
+  }
+  
+  // Check 3-digit codes (e.g., 254, 351, 353, 358)
+  if (digits.length >= 3) {
+    const threeDigit = digits.substring(0, 3);
+    if (COUNTRY_CODE_TO_NAME[threeDigit]) {
+      return COUNTRY_CODE_TO_NAME[threeDigit];
+    }
+  }
+  
+  // Check 2-digit codes (e.g., 65, 82, 86, 91)
+  if (digits.length >= 2) {
+    const twoDigit = digits.substring(0, 2);
+    if (COUNTRY_CODE_TO_NAME[twoDigit]) {
+      return COUNTRY_CODE_TO_NAME[twoDigit];
+    }
+  }
+  
+  // Check 1-digit codes (e.g., 1 for US/Canada)
+  if (digits.length >= 1) {
+    const oneDigit = digits.substring(0, 1);
+    if (COUNTRY_CODE_TO_NAME[oneDigit]) {
+      return COUNTRY_CODE_TO_NAME[oneDigit];
+    }
+  }
+  
+  // Return country code as fallback (first 1-3 digits based on common patterns)
+  const fallbackCode = digits.substring(0, Math.min(3, digits.length));
+  return `+${fallbackCode}`;
+}
+
+/**
  * Country code patterns for phone number formatting
  * Maps country codes to their formatting functions
  */

@@ -65,8 +65,8 @@ const Login = () => {
         // Note: Phone is not stored separately as it can be retrieved from token payload if needed
         // Clear logout flag since user is now logged in
         clearJustLoggedOutFlag();
-        // Redirect to the intended page
-        navigate(from, { replace: true });
+        // Redirect to landing page after login
+        navigate('/', { replace: true });
       } else {
         setError(result.message || 'Login failed. Please try again.');
       }

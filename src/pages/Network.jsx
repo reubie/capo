@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { Home, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
 import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
-import { normalizePhoneNumber } from '../utils/helpers';
+import { normalizePhoneNumber, getCountryFromPhone } from '../utils/helpers';
 import AddCardModal from '../components/AddCardModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorModal from '../components/ErrorModal';
@@ -127,9 +127,26 @@ const Network = () => {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(c => [c.cardOwnerName, c.companyName, c.email, c.phone, c.mobile].some(f => (f || '').toLowerCase().includes(q)));
     }
-    if (filterBy === 'date') filtered.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    else if (filterBy === 'name') filtered.sort((a,b)=>(a.cardOwnerName||'').localeCompare(b.cardOwnerName||''));
-    else if (filterBy === 'company') filtered.sort((a,b)=>(a.companyName||'').localeCompare(b.companyName||''));
+    if (filterBy === 'company') {
+      // Sort by company name (case-insensitive)
+      filtered.sort((a, b) => (a.companyName || '').localeCompare(b.companyName || '', undefined, { sensitivity: 'base' }));
+    } else if (filterBy === 'country') {
+      // Sort by country (extracted from phone number country code)
+      // Prioritize mobile over phone, fallback to phone
+      filtered.sort((a, b) => {
+        const phoneA = a.mobile || a.phone || '';
+        const phoneB = b.mobile || b.phone || '';
+        const countryA = getCountryFromPhone(phoneA);
+        const countryB = getCountryFromPhone(phoneB);
+        return countryA.localeCompare(countryB, undefined, { sensitivity: 'base' });
+      });
+    } else if (filterBy === 'date') {
+      // Sort by date (newest first)
+      filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } else if (filterBy === 'name') {
+      // Sort by name (case-insensitive)
+      filtered.sort((a, b) => (a.cardOwnerName || '').localeCompare(b.cardOwnerName || '', undefined, { sensitivity: 'base' }));
+    }
     setFilteredCards(filtered);
   };
 
@@ -295,9 +312,10 @@ const Network = () => {
             <Filter className="w-5 h-5 text-brand-textSecondary hidden md:block"/>
             <select value={filterBy} onChange={e=>setFilterBy(e.target.value)} className="px-3 py-2 border border-brand-brown/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-brand-brown">
                 <option value="all">All</option>
+                <option value="company">Sort by Company</option>
+                <option value="country">Sort by Country</option>
                 <option value="date">Sort by Date</option>
                 <option value="name">Sort by Name</option>
-                <option value="company">Sort by Company</option>
               </select>
             <div className="flex items-center gap-1 border border-brand-brown/20 rounded-lg p-1 bg-white">
               <button onClick={()=>setViewMode('grid')} className={`p-2 rounded ${viewMode==='grid'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><Grid3x3 className="w-5 h-5"/></button>
