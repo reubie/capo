@@ -1,5 +1,5 @@
 // Firebase Configuration
-// Firebase project: Jiome (New Account)
+// Firebase project: Jiome (Blaze Account)
 // Get these values from: Firebase Console > Project Settings > Your apps > Web app
 
 import { initializeApp } from 'firebase/app';

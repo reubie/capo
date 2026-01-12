@@ -13,7 +13,7 @@ import {
 import PhoneInput, { validatePhoneWithCountry, formatPhoneForBackend } from '../components/PhoneInput';
 import OTPInput from '../components/OTPInput';
 import ErrorModal from '../components/ErrorModal';
-import { sendOTP, verifyOTP, resendOTP, clearRecaptcha } from '../utils/firebaseAuth';
+import { sendOTP, verifyOTP, resendOTP, clearRecaptcha, getFirebaseAuthDebugInfo } from '../utils/firebaseAuth';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -181,6 +181,10 @@ const Register = () => {
       const formattedPhone = formatPhoneForBackend(formData.phone);
 
       console.log('📤 Sending OTP to:', formattedPhone);
+      
+      // Log Firebase auth debug info before sending
+      const debugInfo = getFirebaseAuthDebugInfo();
+      console.log('🔍 Firebase Auth Debug Info:', debugInfo);
 
       // Send OTP via Firebase
       await sendOTP(formattedPhone, 'recaptcha-container');
@@ -197,7 +201,11 @@ const Register = () => {
         setOtpSent(false);
       }, 3000);
     } catch (error) {
-      console.error('❌ Error sending OTP:', error);
+      console.error('❌ Error sending OTP in Register component:', error);
+      
+      // Log debug info at error time
+      const debugInfo = getFirebaseAuthDebugInfo();
+      console.error('🔍 Firebase Auth Debug Info at error time:', debugInfo);
       
       // Handle billing error specifically - show user-friendly message
       if (error.message && error.message.includes('BILLING_REQUIRED')) {
@@ -205,6 +213,13 @@ const Register = () => {
           visible: true,
           title: 'Service Temporarily Unavailable',
           message: 'Phone verification is currently unavailable. Please contact support or try again later.\n\nWe apologize for the inconvenience.',
+        });
+      } else if (error.message && error.message.includes('INVALID_APP_CREDENTIAL')) {
+        // Special handling for INVALID_APP_CREDENTIAL with detailed message
+        setErrorModal({
+          visible: true,
+          title: 'Authentication Configuration Error',
+          message: error.message + '\n\nPlease check the browser console for detailed error logs and troubleshooting steps.',
         });
       } else {
         // Show error in modal for other critical errors
