@@ -155,29 +155,39 @@ const Landing = () => {
       <div className="relative h-screen w-full overflow-hidden">
         {/* Left Side - GIFTICON (Clickable) */}
         <div 
-          className="absolute inset-0 left-0 w-1/2 cursor-pointer transition-all duration-300"
+          className="absolute inset-0 left-0 w-1/2 cursor-pointer transition-all duration-300 z-10"
           onMouseEnter={() => setHoveredSide('gifticon')}
           onMouseLeave={() => setHoveredSide(null)}
-          onClick={() => handleSmartNavigation('/gifticon')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSmartNavigation('/gifticon');
+          }}
         />
 
         {/* Right Side - NETWORK (Clickable) */}
         <div 
-          className="absolute inset-0 right-0 w-1/2 cursor-pointer transition-all duration-300"
+          className="absolute inset-0 right-0 w-1/2 cursor-pointer transition-all duration-300 z-10"
           onMouseEnter={() => setHoveredSide('network')}
           onMouseLeave={() => setHoveredSide(null)}
-          onClick={() => handleSmartNavigation('/network')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSmartNavigation('/network');
+          }}
         />
 
         {/* Central Content: Text on Sides */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 px-4">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 px-4">
           <div className="flex items-center justify-center gap-8 xs:gap-10 sm:gap-12 md:gap-16 tablet:gap-20 laptop:gap-24 desktop:gap-32 desktop-lg:gap-40">
             {/* GIFTICON Text - Left side (cream/white) - Brown text */}
             <div
               className="relative cursor-pointer transition-all duration-300"
               onMouseEnter={() => setHoveredSide('gifticon')}
               onMouseLeave={() => setHoveredSide(null)}
-              onClick={() => handleSmartNavigation('/gifticon')}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleSmartNavigation('/gifticon');
+              }}
             >
               <h2 
                 className="font-bold text-brand-brown tracking-tight leading-none drop-shadow-md"
@@ -194,7 +204,11 @@ const Landing = () => {
               className="relative cursor-pointer transition-all duration-300"
               onMouseEnter={() => setHoveredSide('network')}
               onMouseLeave={() => setHoveredSide(null)}
-              onClick={() => handleSmartNavigation('/network')}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleSmartNavigation('/network');
+              }}
               style={{
                 marginLeft: 'clamp(1rem, 3vw, 4rem)',
               }}
