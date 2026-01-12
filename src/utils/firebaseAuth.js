@@ -95,31 +95,24 @@ export const initializeRecaptcha = async (recaptchaContainerId = 'recaptcha-cont
     // Validate Firebase config first
     validateFirebaseConfig();
     
-    // Check if container exists
-    checkRecaptchaContainer(recaptchaContainerId);
+    // Step 1: Ensure container exists (will create if needed)
+    const container = checkRecaptchaContainer(recaptchaContainerId);
     
-    // Clear existing verifier if any
-    if (recaptchaVerifier) {
-      console.log('🧹 Clearing existing reCAPTCHA verifier');
-      try {
-        recaptchaVerifier.clear();
-      } catch (clearError) {
-        console.warn('Warning clearing reCAPTCHA:', clearError);
-      }
-      recaptchaVerifier = null;
-      recaptchaInitialized = false;
+    // Step 2: Clear existing verifier and DOM completely before re-initializing
+    // This prevents "already rendered" errors when going back to change phone number
+    if (recaptchaVerifier || recaptchaInitialized) {
+      console.log('🧹 Clearing existing reCAPTCHA before re-initialization');
+      await clearRecaptcha(recaptchaContainerId);
+      // Wait a bit more to ensure DOM is fully ready
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
     
-    // Clear the DOM container to remove any leftover reCAPTCHA widgets
-    // This is critical when re-initializing after clearing
-    try {
-      const container = document.getElementById(recaptchaContainerId);
-      if (container) {
-        container.innerHTML = '';
-        console.log('✅ Cleared reCAPTCHA container DOM element before re-initialization');
-      }
-    } catch (error) {
-      console.warn('Warning clearing reCAPTCHA container DOM:', error);
+    // Step 3: Double-check container is clean
+    const finalContainer = document.getElementById(recaptchaContainerId);
+    if (finalContainer && finalContainer.children.length > 0) {
+      console.warn('⚠️ Container still has children, clearing again...');
+      finalContainer.innerHTML = '';
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     console.log('📦 Creating new RecaptchaVerifier instance');
@@ -488,31 +481,85 @@ export const resendOTP = async (phoneNumber, recaptchaContainerId = 'recaptcha-c
  * @param {string} recaptchaContainerId - HTML element ID for reCAPTCHA container (optional)
  */
 export const clearRecaptcha = (recaptchaContainerId = 'recaptcha-container') => {
-  console.log('🧹 Clearing reCAPTCHA verifier');
+  console.log('🧹 Clearing reCAPTCHA verifier and DOM element');
   
+  // Step 1: Clear the verifier instance
   if (recaptchaVerifier) {
     try {
       recaptchaVerifier.clear();
+      console.log('✅ Cleared reCAPTCHA verifier instance');
     } catch (error) {
-      console.warn('Warning clearing reCAPTCHA:', error);
+      console.warn('Warning clearing reCAPTCHA verifier:', error);
     }
     recaptchaVerifier = null;
   }
   
-  // Clear the DOM element to remove any leftover reCAPTCHA widgets
+  // Step 2: Completely remove and recreate the DOM container
+  // This ensures no leftover widgets or event listeners remain
   try {
     const container = document.getElementById(recaptchaContainerId);
     if (container) {
-      // Remove all child elements (reCAPTCHA widgets)
-      container.innerHTML = '';
-      console.log('✅ Cleared reCAPTCHA container DOM element');
+      // Remove all child nodes
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      
+      // Remove all attributes that might have been set by reCAPTCHA
+      container.removeAttribute('data-callback');
+      container.removeAttribute('data-expired-callback');
+      container.removeAttribute('data-error-callback');
+      
+      // Remove the element from DOM and recreate it
+      const parent = container.parentNode;
+      if (parent) {
+        parent.removeChild(container);
+        
+        // Create a fresh container element
+        const newContainer = document.createElement('div');
+        newContainer.id = recaptchaContainerId;
+        newContainer.style.position = 'absolute';
+        newContainer.style.opacity = '0';
+        newContainer.style.pointerEvents = 'none';
+        newContainer.style.width = '0';
+        newContainer.style.height = '0';
+        newContainer.style.overflow = 'hidden';
+        parent.appendChild(newContainer);
+        
+        console.log('✅ Removed and recreated reCAPTCHA container DOM element');
+      } else {
+        // If no parent, just clear innerHTML
+        container.innerHTML = '';
+        console.log('✅ Cleared reCAPTCHA container innerHTML (no parent found)');
+      }
+    } else {
+      // Container doesn't exist, create it
+      const newContainer = document.createElement('div');
+      newContainer.id = recaptchaContainerId;
+      newContainer.style.position = 'absolute';
+      newContainer.style.opacity = '0';
+      newContainer.style.pointerEvents = 'none';
+      newContainer.style.width = '0';
+      newContainer.style.height = '0';
+      newContainer.style.overflow = 'hidden';
+      document.body.appendChild(newContainer);
+      console.log('✅ Created new reCAPTCHA container (did not exist)');
     }
   } catch (error) {
     console.warn('Warning clearing reCAPTCHA container DOM:', error);
   }
   
+  // Step 3: Reset module-level state
   recaptchaInitialized = false;
   confirmationResult = null;
+  
+  // Step 4: Small delay to ensure DOM cleanup is complete
+  // This helps prevent race conditions when re-initializing immediately after
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log('✅ reCAPTCHA cleanup complete - ready for re-initialization');
+      resolve();
+    }, 100); // 100ms delay to ensure DOM is fully cleaned
+  });
 };
 
 /**

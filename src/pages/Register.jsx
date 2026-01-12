@@ -315,7 +315,7 @@ const Register = () => {
         toast.success('Account created successfully 🎉');
         
         // Clear OTP state
-        clearRecaptcha();
+        await clearRecaptcha('recaptcha-container');
         
         // Backend handles verification and login - redirect to login page
         // User will need to login with their phone number and password
@@ -349,7 +349,7 @@ const Register = () => {
             // Phone number already registered - show error and go back to register form
             toast.error('This phone number is already registered. Please login instead.');
             setStep('register'); // Go back to registration form
-            clearRecaptcha('recaptcha-container'); // Clear reCAPTCHA state and DOM element
+            await clearRecaptcha('recaptcha-container'); // Clear reCAPTCHA state and DOM element
             break;
           default:
             toast.error(res.data?.message || 'Registration failed.');
@@ -372,6 +372,14 @@ const Register = () => {
     setOtpSent(false);
 
     try {
+      // Clear reCAPTCHA before resending to ensure clean state
+      // This prevents "already rendered" errors
+      try {
+        await clearRecaptcha('recaptcha-container');
+      } catch (error) {
+        console.warn('Warning clearing reCAPTCHA for resend:', error);
+      }
+
       // Format phone number for Firebase (E.164 format)
       const formattedPhone = formatPhoneForBackend(formData.phone);
 
@@ -413,11 +421,21 @@ const Register = () => {
   /* =========================
      GO BACK TO REGISTER
   ========================= */
-  const handleBackToRegister = () => {
+  const handleBackToRegister = async () => {
+    // Clear OTP state first
     setStep('register');
     setOtpCode('');
     setOtpError('');
-    clearRecaptcha('recaptcha-container'); // Clear reCAPTCHA state and DOM element
+    
+    // Clear reCAPTCHA completely and wait for cleanup to finish
+    // This ensures smooth re-initialization when user tries to send OTP again
+    try {
+      await clearRecaptcha('recaptcha-container');
+      console.log('✅ reCAPTCHA cleared - ready for new phone number');
+    } catch (error) {
+      console.warn('Warning during reCAPTCHA cleanup:', error);
+      // Continue anyway - the next sendOTP call will handle re-initialization
+    }
   };
 
   /* =========================
@@ -726,6 +744,11 @@ const Register = () => {
       <ErrorModal
         visible={errorModal.visible}
         onClose={() => setErrorModal({ ...errorModal, visible: false })}
+        onBackdropClick={() => {
+          // When clicking outside modal, navigate to landing page
+          setErrorModal({ ...errorModal, visible: false });
+          navigate('/');
+        }}
         title={errorModal.title}
         message={errorModal.message}
         buttonText="Got it"

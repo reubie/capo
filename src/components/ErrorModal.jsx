@@ -4,6 +4,7 @@ import { X, AlertCircle } from 'lucide-react';
 const ErrorModal = ({ 
   visible, 
   onClose, 
+  onBackdropClick = null, // Optional: called when clicking outside the modal
   title = 'Error',
   message = 'An error occurred. Please try again.',
   buttonText = 'OK',
@@ -11,9 +12,22 @@ const ErrorModal = ({
 }) => {
   if (!visible) return null;
 
+  const handleBackdropClick = (e) => {
+    // Only trigger if clicking the backdrop itself, not the modal content
+    if (e.target === e.currentTarget && onBackdropClick) {
+      onBackdropClick();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-brand-cardLight rounded-2xl p-6 max-w-md w-full relative shadow-2xl border border-brand-brown/20">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="bg-brand-cardLight rounded-2xl p-6 max-w-md w-full relative shadow-2xl border border-brand-brown/20"
+        onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking inside modal
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-brand-textSecondary hover:text-brand-brown transition-colors"
