@@ -109,6 +109,18 @@ export const initializeRecaptcha = async (recaptchaContainerId = 'recaptcha-cont
       recaptchaVerifier = null;
       recaptchaInitialized = false;
     }
+    
+    // Clear the DOM container to remove any leftover reCAPTCHA widgets
+    // This is critical when re-initializing after clearing
+    try {
+      const container = document.getElementById(recaptchaContainerId);
+      if (container) {
+        container.innerHTML = '';
+        console.log('✅ Cleared reCAPTCHA container DOM element before re-initialization');
+      }
+    } catch (error) {
+      console.warn('Warning clearing reCAPTCHA container DOM:', error);
+    }
 
     console.log('📦 Creating new RecaptchaVerifier instance');
     console.log('Container ID:', recaptchaContainerId);
@@ -471,8 +483,11 @@ export const resendOTP = async (phoneNumber, recaptchaContainerId = 'recaptcha-c
 
 /**
  * Clear reCAPTCHA verifier (cleanup)
+ * Also clears the DOM element to allow re-initialization
+ * 
+ * @param {string} recaptchaContainerId - HTML element ID for reCAPTCHA container (optional)
  */
-export const clearRecaptcha = () => {
+export const clearRecaptcha = (recaptchaContainerId = 'recaptcha-container') => {
   console.log('🧹 Clearing reCAPTCHA verifier');
   
   if (recaptchaVerifier) {
@@ -483,6 +498,19 @@ export const clearRecaptcha = () => {
     }
     recaptchaVerifier = null;
   }
+  
+  // Clear the DOM element to remove any leftover reCAPTCHA widgets
+  try {
+    const container = document.getElementById(recaptchaContainerId);
+    if (container) {
+      // Remove all child elements (reCAPTCHA widgets)
+      container.innerHTML = '';
+      console.log('✅ Cleared reCAPTCHA container DOM element');
+    }
+  } catch (error) {
+    console.warn('Warning clearing reCAPTCHA container DOM:', error);
+  }
+  
   recaptchaInitialized = false;
   confirmationResult = null;
 };

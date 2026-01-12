@@ -41,6 +41,9 @@ export const getUserFriendlyOTPError = (error) => {
     errorMessage.toLowerCase().includes('connection') ||
     errorMessage.toLowerCase().includes('fetch')
   );
+  
+  const isRecaptchaRendered = errorMessage.includes('already been rendered') ||
+                              errorMessage.includes('reCAPTCHA has already been rendered');
 
   // Return user-friendly messages
   if (isBillingError) {
@@ -89,6 +92,13 @@ export const getUserFriendlyOTPError = (error) => {
     return {
       title: 'Connection Problem',
       message: 'Unable to connect to our servers. Please check your internet connection and try again.'
+    };
+  }
+
+  if (isRecaptchaRendered) {
+    return {
+      title: 'Verification Reset Required',
+      message: 'Please refresh the page and try again. This helps reset the verification process.'
     };
   }
 

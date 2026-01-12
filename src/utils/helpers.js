@@ -1,3 +1,13 @@
+// Re-export phone utilities for backward compatibility
+export { 
+  normalizePhoneNumber,
+  formatPhoneNumberForDisplay,
+  formatPhoneForBackend as formatPhoneForBackendNew,
+  validatePhoneNumber as validatePhoneNumberNew,
+  getCountryFromPhoneNumber,
+  isMobileNumber
+} from './phoneUtils';
+
 // Utility function for className merging
 export function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -179,166 +189,6 @@ const COUNTRY_FORMATTERS = {
   },
 };
 
-/**
- * Common country codes that might be split by OCR errors
- * Maps partial codes to full country codes
- */
-const SPLIT_COUNTRY_CODES = {
-  '6': { '5': '65' },  // Singapore: "+6 5" → "+65"
-  '8': { '2': '82', '6': '86', '1': '81' },  // Korea: "+8 2" → "+82", China: "+8 6" → "+86", Japan: "+8 1" → "+81"
-  '4': { '4': '44' },  // UK: "+4 4" → "+44"
-  '6': { '1': '61' },  // Australia: "+6 1" → "+61" (note: '6' key already exists, but this is handled in logic)
-};
-
-/**
- * Normalize phone number for global use
- * Handles split country codes and formats according to country-specific patterns
- * Examples:
- *   +82 10. 3652. 8758 → +82 10 3652 8758
- *   +65 8520 0282 → +65 8520 0282
- *   +6 585200282 → +65 8520 0282 (fixes split country code)
- *   +8 2 2046 6889 → +82 2 2046 6889 (fixes split country code)
- *   +1 234.567.8900 → +1 234 567 8900
- * @param {string} phone - Phone number string
- * @returns {string} Normalized phone number
- */
-export function normalizePhoneNumber(phone) {
-  // Handle edge cases: null, undefined, empty string, or non-string values
-  if (!phone || typeof phone !== 'string') return phone;
-  
-  // Handle placeholder values like '-' - return as-is
-  if (phone.trim() === '-') return phone;
-  
-  // Step 1: Remove all dots (universal - dots are not standard in phone numbers)
-  let normalized = phone.replace(/\./g, '');
-  
-  // Step 2: Normalize spaces (remove multiple spaces, keep single spaces)
-  normalized = normalized.replace(/\s+/g, ' ').trim();
-  
-  // Step 3: Extract and fix country code if split
-  // Match: + followed by country code (1-4 digits), then the number part
-  const match = normalized.match(/^\+(\d{1,4})\s*(.+)$/);
-  
-  if (match) {
-    let countryCode = match[1];
-    let numberPart = match[2].trim();
-    
-    // Fix split country codes (e.g., "+6 5" → "+65", "+8 2" → "+82")
-    // Check if country code is 1 digit and next part starts with a digit
-    if (countryCode.length === 1 && numberPart.length > 0) {
-      // Remove all non-digits to check the pattern
-      const numberDigits = numberPart.replace(/\D/g, '');
-      const firstDigit = numberDigits[0];
-      
-      // Special case: "+8" followed by "2" = Korea (+82) - handle FIRST because "2" is area code, not country code
-      // Pattern: "+8 2 2046 6889" → country code "8", number part is "2 2046 6889"
-      // After fixing: "+82 2 2046 6889" (keep the "2" as it's the area code for Seoul)
-      if (countryCode === '8' && firstDigit === '2' && numberDigits.length >= 8 && numberDigits.length <= 11) {
-        countryCode = '82';
-        // DON'T remove the "2" - it's the Seoul area code, not part of country code
-        // Keep numberPart as is
-      }
-      // Check if combining with next digit forms a known country code (for other countries)
-      else if (SPLIT_COUNTRY_CODES[countryCode] && SPLIT_COUNTRY_CODES[countryCode][firstDigit]) {
-        const fixedCode = SPLIT_COUNTRY_CODES[countryCode][firstDigit];
-        countryCode = fixedCode;
-        // Remove the first digit from numberPart (only for countries where it's not an area code)
-        numberPart = numberPart.substring(numberPart.indexOf(firstDigit) + 1).trim();
-      }
-      // Special case: "+6" followed by "5" followed by 8 digits = Singapore (+65)
-      // Pattern: "+6 585200282" → country code "6", number part is "585200282" (9 digits starting with 5)
-      // After fixing, it becomes: "+65 85200282" (country code "65", number "85200282" which is 8 digits)
-      else if (countryCode === '6' && firstDigit === '5' && numberDigits.length === 9) {
-        countryCode = '65';
-        // Find the position of the first '5' and remove it, keeping the rest
-        const fiveIndex = numberPart.search(/5/);
-        numberPart = numberPart.substring(fiveIndex + 1).trim();
-      }
-      // Special case: "+6" followed by "1" followed by 9 digits = Australia (+61)
-      // Pattern: "+6 185200282" → country code "6", number part is "185200282" (10 digits starting with 1)
-      // After fixing: "+61 8520 0282" (country code "61", number "85200282" which is 9 digits)
-      else if (countryCode === '6' && firstDigit === '1' && numberDigits.length === 10) {
-        countryCode = '61';
-        // Remove the first "1" as it's part of the country code, keep the rest (85200282)
-        const oneIndex = numberPart.search(/1/);
-        if (oneIndex >= 0) {
-          numberPart = numberPart.substring(oneIndex + 1).trim();
-        }
-      }
-      // Special case: "+8" followed by "6" followed by 11 digits = China (+86)
-      else if (countryCode === '8' && firstDigit === '6' && numberDigits.length === 11) {
-        countryCode = '86';
-        numberPart = numberPart.substring(numberPart.indexOf('6') + 1).trim();
-      }
-      // Special case: "+8" followed by "1" followed by 10-11 digits = Japan (+81)
-      else if (countryCode === '8' && firstDigit === '1' && numberDigits.length >= 10 && numberDigits.length <= 11) {
-        countryCode = '81';
-        numberPart = numberPart.substring(numberPart.indexOf('1') + 1).trim();
-      }
-      // Special case: "+4" followed by "4" followed by 10-11 digits = UK (+44)
-      else if (countryCode === '4' && firstDigit === '4' && numberDigits.length >= 10 && numberDigits.length <= 11) {
-        countryCode = '44';
-        numberPart = numberPart.substring(numberPart.indexOf('4', 1) + 1).trim();
-      }
-    }
-    
-    // Also check for 2-digit country codes that might be split (e.g., "+6 5" where "6" and "5" are separated)
-    // This handles cases where the space is between the country code digits
-    if (countryCode.length === 2 && numberPart.length > 0) {
-      const numberDigits = numberPart.replace(/\D/g, '');
-      // If the number part is very long, it might contain the actual number
-      // For now, we'll assume 2-digit codes are correct
-    }
-    
-    // Step 4: Clean number part (remove all non-digits)
-    const cleanedNumberPart = numberPart.replace(/\D/g, '');
-    
-    // Step 5: Apply country-specific formatting if formatter exists
-    if (COUNTRY_FORMATTERS[countryCode] && cleanedNumberPart.length > 0) {
-      const formatted = COUNTRY_FORMATTERS[countryCode](cleanedNumberPart);
-      return `+${countryCode} ${formatted}`;
-    }
-    
-    // Fallback: Return with cleaned number part
-    if (cleanedNumberPart.length > 0) {
-      return `+${countryCode} ${cleanedNumberPart}`;
-    }
-    
-    // If number part is empty or invalid, return cleaned version
-    return `+${countryCode} ${numberPart}`;
-  }
-  
-  // Step 6: Handle numbers without country code - try to detect and add
-  const cleaned = normalized.replace(/\D/g, '');
-  
-  // Singapore: 8 digits starting with 6, 8, or 9
-  if (cleaned.length === 8 && /^[689]/.test(cleaned)) {
-    const formatted = COUNTRY_FORMATTERS['65'](cleaned);
-    return `+65 ${formatted}`;
-  }
-  
-  // Korea: 10-11 digits starting with 10 (mobile) or 2 (Seoul)
-  if (cleaned.length >= 10 && cleaned.length <= 11) {
-    if (cleaned.startsWith('10')) {
-      // Mobile: +82 10 XXXX XXXX
-      const formatted = COUNTRY_FORMATTERS['82'](cleaned);
-      return `+82 ${formatted}`;
-    } else if (cleaned.startsWith('2')) {
-      // Seoul landline: +82 2 XXXX XXXX
-      const formatted = COUNTRY_FORMATTERS['82'](cleaned);
-      return `+82 ${formatted}`;
-    }
-  }
-  
-  // US/Canada: 10 digits starting with 2-9
-  if (cleaned.length === 10 && /^[2-9]/.test(cleaned)) {
-    const formatted = COUNTRY_FORMATTERS['1'](cleaned);
-    return `+1 ${formatted}`;
-  }
-  
-  // If no pattern matches, return cleaned version
-  return normalized;
-}
 
 // Format phone number (legacy function, kept for backward compatibility)
 export function formatPhoneNumber(phone) {

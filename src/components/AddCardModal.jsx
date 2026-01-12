@@ -5,6 +5,8 @@ import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
 import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
+import { formatAsYouType, validatePhoneNumber as validatePhoneNumberLib, getCountryFromPhoneNumber } from '../utils/phoneUtils';
+import { detectUserCountrySync } from '../utils/countryDetection';
 import { compressBusinessCardImage } from '../utils/imageCompression';
 import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
 import { generateBusinessCard, generateBusinessCardFile } from '../utils/businessCardGenerator';
@@ -46,6 +48,15 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
   // Field errors
   const [fieldErrors, setFieldErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
+  
+  // Get detected country for phone formatting
+  const [detectedCountry, setDetectedCountry] = useState(null);
+  
+  useEffect(() => {
+    // Detect country on mount for phone number formatting
+    const country = detectUserCountrySync();
+    setDetectedCountry(country);
+  }, []);
 
   // Prevent browser default drop behavior when modal is open
   useEffect(() => {
@@ -818,10 +829,12 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Normalize phone numbers when user types
+    // Format phone numbers as user types (real-time formatting with country-specific patterns)
     let normalizedValue = value;
     if (name === 'phone' || name === 'mobile') {
-      normalizedValue = normalizePhoneNumber(value);
+      // Use formatAsYouType for real-time formatting with country-specific patterns
+      const formatted = formatAsYouType(value, detectedCountry);
+      normalizedValue = formatted || value;
     }
     
     // Update form data - preserve all other fields
@@ -846,6 +859,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
         error = 'Email is required';
       } else if (!validateEmail(value)) {
         error = 'Please enter a valid email address';
+      }
+    } else if (name === 'phone' || name === 'mobile') {
+      // Use libphonenumber-js for accurate phone validation
+      if (!value || !value.trim()) {
+        error = `${name === 'phone' ? 'Phone' : 'Mobile'} is required`;
+      } else {
+        const validation = validatePhoneNumberLib(value, detectedCountry);
+        if (!validation.isValid) {
+          error = validation.error || `Please enter a valid ${name === 'phone' ? 'phone' : 'mobile'} number`;
+        }
       }
     } else if (requiredFields.includes(name)) {
       if (!value || !value.trim()) {
@@ -979,13 +1002,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     // Prepare card JSON data (without image - image is sent as separate file)
     // Note: cardImageUrl is a deleted field, do not include it
     // Note: ocrText is set to empty string as backend database has length limits
+    // Format phone numbers for backend (E.164 format: +1234567890)
+    const { formatPhoneForBackend } = require('../utils/phoneUtils');
+    
     const cardJsonData = {
       cardOwnerName: formData.cardOwnerName.trim(),
       companyName: formData.companyName.trim(),
       department: toNullIfEmpty(formData.department), // Optional: send null if empty
       position: formData.position.trim(),
-      phone: normalizePhoneNumber(formData.phone.trim()),
-      mobile: normalizePhoneNumber(formData.mobile.trim()),
+      phone: formatPhoneForBackend(formData.phone.trim(), detectedCountry),
+      mobile: formatPhoneForBackend(formData.mobile.trim(), detectedCountry),
       email: formData.email.trim(),
       companyAddress: formData.companyAddress.trim(),
       linkedIn: toNullIfEmpty(formData.linkedIn), // Optional: send null if empty

@@ -3,6 +3,8 @@ import PhoneInputWithCountry from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Phone } from 'lucide-react';
 import { isValidPhoneNumber, parsePhoneNumber } from 'react-phone-number-input';
+import { detectUserCountry, detectUserCountrySync } from '../utils/countryDetection';
+import { formatPhoneForBackend as formatPhoneForBackendLib } from '../utils/phoneUtils';
 
 const PhoneInput = ({ 
   value, 
@@ -13,11 +15,36 @@ const PhoneInput = ({
   placeholder = "Enter your phone number",
   required = false,
   className = "",
-  disabled = false
+  disabled = false,
+  defaultCountry = null // If null, will auto-detect
 }) => {
   const [internalValue, setInternalValue] = useState(value || '');
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [detectedCountry, setDetectedCountry] = useState(defaultCountry || 'US');
   const inputRef = useRef(null);
+
+  // Auto-detect country on mount if defaultCountry is not provided
+  useEffect(() => {
+    if (defaultCountry === null) {
+      // Use sync locale detection first for immediate UI feedback (temporary)
+      const syncCountry = detectUserCountrySync();
+      setDetectedCountry(syncCountry);
+      
+      // Then immediately try IP-based detection (primary method for location accuracy)
+      // This will update the country when IP detection completes
+      detectUserCountry(true).then(country => {
+        if (country) {
+          setDetectedCountry(country);
+          console.log('✅ Country updated to:', country);
+        }
+      }).catch((error) => {
+        // Silently fail - we already have a locale-based default
+        console.warn('IP detection failed, using locale-based country:', error.message);
+      });
+    } else {
+      setDetectedCountry(defaultCountry);
+    }
+  }, [defaultCountry]);
 
   // Handle autofill: If value doesn't start with +, try to detect country code
   useEffect(() => {
@@ -64,6 +91,8 @@ const PhoneInput = ({
   }, [value]);
 
   const handleChange = (newValue) => {
+    // react-phone-number-input already handles formatting, so we don't need to format again
+    // Just update the internal value and call onChange
     setInternalValue(newValue || '');
     setHasInteracted(true);
     onChange?.(newValue || '');
@@ -90,7 +119,7 @@ const PhoneInput = ({
         <PhoneInputWithCountry
           ref={inputRef}
           international
-          defaultCountry="US"
+          defaultCountry={detectedCountry}
           value={internalValue}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -159,14 +188,21 @@ export const validatePhoneWithCountry = (phone) => {
 };
 
 // Format phone for backend (E.164 format: +1234567890)
-export const formatPhoneForBackend = (phone) => {
+// Uses libphonenumber-js for accurate formatting
+export const formatPhoneForBackend = (phone, defaultCountry = null) => {
   if (!phone) return '';
   try {
-    const phoneNumber = parsePhoneNumber(phone);
-    return phoneNumber ? phoneNumber.format('E.164') : phone.replace(/\s/g, '');
+    // Use libphonenumber-js for better accuracy
+    return formatPhoneForBackendLib(phone, defaultCountry);
   } catch {
-    // Fallback: remove spaces and ensure starts with +
-    return phone.replace(/\s/g, '').replace(/^\+?/, '+');
+    // Fallback: use react-phone-number-input
+    try {
+      const phoneNumber = parsePhoneNumber(phone);
+      return phoneNumber ? phoneNumber.format('E.164') : phone.replace(/\s/g, '');
+    } catch {
+      // Final fallback: remove spaces and ensure starts with +
+      return phone.replace(/\s/g, '').replace(/^\+?/, '+');
+    }
   }
 };
 

@@ -349,7 +349,7 @@ const Register = () => {
             // Phone number already registered - show error and go back to register form
             toast.error('This phone number is already registered. Please login instead.');
             setStep('register'); // Go back to registration form
-            clearRecaptcha(); // Clear reCAPTCHA state
+            clearRecaptcha('recaptcha-container'); // Clear reCAPTCHA state and DOM element
             break;
           default:
             toast.error(res.data?.message || 'Registration failed.');
@@ -417,7 +417,7 @@ const Register = () => {
     setStep('register');
     setOtpCode('');
     setOtpError('');
-    clearRecaptcha(); // Clear reCAPTCHA state
+    clearRecaptcha('recaptcha-container'); // Clear reCAPTCHA state and DOM element
   };
 
   /* =========================

@@ -175,12 +175,12 @@ const Profile = () => {
     toast.success('Opening WhatsApp...');
   };
 
-  const shareToInstagram = () => {
+  const shareToWeChat = () => {
     if (!myCard) return;
-    // Instagram doesn't support direct sharing via URL, so we'll copy to clipboard
+    // WeChat sharing - WeChat doesn't support direct web sharing, so we'll copy to clipboard
     const text = formatBusinessCardText();
     navigator.clipboard.writeText(text).then(() => {
-      toast.success('Business card copied! You can now paste it in Instagram.');
+      toast.success('Business card copied! You can now paste it in WeChat.');
       setShowShareModal(false);
     }).catch(() => {
       toast.error('Failed to copy. Please try again.');
@@ -700,7 +700,7 @@ const Profile = () => {
             </div>
 
             <div className="space-y-3">
-              {/* WhatsApp */}
+              {/* 1. WhatsApp */}
               <button
                 onClick={shareToWhatsApp}
                 className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
@@ -709,16 +709,16 @@ const Profile = () => {
                 Share via WhatsApp
               </button>
 
-              {/* Instagram */}
+              {/* 2. SMS */}
               <button
-                onClick={shareToInstagram}
-                className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                onClick={shareViaSMS}
+                className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
               >
-                <Share2 className="w-5 h-5" />
-                Share via Instagram
+                <Phone className="w-5 h-5" />
+                Share via SMS
               </button>
 
-              {/* KakaoTalk */}
+              {/* 3. KakaoTalk */}
               <button
                 onClick={shareToKakao}
                 className="w-full py-3 px-4 bg-yellow-400 text-brand-brown rounded-lg font-medium hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
@@ -727,13 +727,13 @@ const Profile = () => {
                 Share via KakaoTalk
               </button>
 
-              {/* SMS */}
+              {/* 4. WeChat */}
               <button
-                onClick={shareViaSMS}
-                className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                onClick={shareToWeChat}
+                className="w-full py-3 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
-                <Phone className="w-5 h-5" />
-                Share via SMS
+                <MessageCircle className="w-5 h-5" />
+                Share via WeChat
               </button>
             </div>
           </div>
