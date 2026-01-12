@@ -14,6 +14,7 @@ import PhoneInput, { validatePhoneWithCountry, formatPhoneForBackend } from '../
 import OTPInput from '../components/OTPInput';
 import ErrorModal from '../components/ErrorModal';
 import { sendOTP, verifyOTP, resendOTP, clearRecaptcha, getFirebaseAuthDebugInfo } from '../utils/firebaseAuth';
+import { getUserFriendlySendOTPError, getUserFriendlyVerifyOTPError, getUserFriendlyResendOTPError, getUserFriendlyOTPError } from '../utils/errorMessages';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -203,33 +204,22 @@ const Register = () => {
     } catch (error) {
       console.error('❌ Error sending OTP in Register component:', error);
       
-      // Log debug info at error time
+      // Log debug info at error time (for developers, not shown to users)
       const debugInfo = getFirebaseAuthDebugInfo();
       console.error('🔍 Firebase Auth Debug Info at error time:', debugInfo);
       
-      // Handle billing error specifically - show user-friendly message
-      if (error.message && error.message.includes('BILLING_REQUIRED')) {
-        setErrorModal({
-          visible: true,
-          title: 'Service Temporarily Unavailable',
-          message: 'Phone verification is currently unavailable. Please contact support or try again later.\n\nWe apologize for the inconvenience.',
-        });
-      } else if (error.message && error.message.includes('INVALID_APP_CREDENTIAL')) {
-        // Special handling for INVALID_APP_CREDENTIAL with detailed message
-        setErrorModal({
-          visible: true,
-          title: 'Authentication Configuration Error',
-          message: error.message + '\n\nPlease check the browser console for detailed error logs and troubleshooting steps.',
-        });
-      } else {
-        // Show error in modal for other critical errors
-        setErrorModal({
-          visible: true,
-          title: 'Failed to Send OTP',
-          message: error.message || 'Unable to send verification code. Please check your phone number and try again.',
-        });
-      }
-      setOtpError(error.message || 'Failed to send OTP. Please try again.');
+      // Get user-friendly error message
+      const friendlyError = getUserFriendlySendOTPError(error);
+      
+      // Show error in modal for critical errors
+      setErrorModal({
+        visible: true,
+        title: friendlyError.title,
+        message: friendlyError.message,
+      });
+      
+      // Set inline error (simplified message)
+      setOtpError(friendlyError.message.split('\n\n')[0]);
     } finally {
       setSendingOTP(false);
     }
@@ -262,16 +252,21 @@ const Register = () => {
     } catch (error) {
       console.error('❌ Error verifying OTP:', error);
       
-      // Show error in modal for critical errors
-      if (error.message && (error.message.includes('expired') || error.message.includes('session'))) {
+      // Get user-friendly error message
+      const friendlyError = getUserFriendlyOTPError(error);
+      
+      // Show error in modal for critical errors (expired, invalid credential, etc.)
+      if (error.code === 'auth/code-expired' || 
+          error.code === 'auth/session-expired' ||
+          error.code === 'auth/invalid-app-credential') {
         setErrorModal({
           visible: true,
-          title: 'OTP Session Expired',
-          message: error.message + '\n\nPlease request a new OTP code using the "Resend OTP" button.',
+          title: friendlyError.title,
+          message: friendlyError.message,
         });
     } else {
-        // Show inline error for validation errors
-        setOtpError(error.message || 'Invalid OTP code. Please check and try again.');
+        // Show inline error for validation errors (invalid code, etc.)
+        setOtpError(getUserFriendlyVerifyOTPError(error));
       }
     } finally {
       setVerifyingOTP(false);
@@ -398,21 +393,18 @@ const Register = () => {
     } catch (error) {
       console.error('❌ Error resending OTP:', error);
       
-      // Handle billing error specifically - show user-friendly message
-      if (error.message && error.message.includes('BILLING_REQUIRED')) {
-        setErrorModal({
-          visible: true,
-          title: 'Service Temporarily Unavailable',
-          message: 'Phone verification is currently unavailable. Please contact support or try again later.\n\nWe apologize for the inconvenience.',
-        });
-      } else {
-        setErrorModal({
-          visible: true,
-          title: 'Failed to Resend OTP',
-          message: error.message || 'Unable to resend verification code. Please try again later.',
-        });
-      }
-      setOtpError(error.message || 'Failed to resend OTP. Please try again.');
+      // Get user-friendly error message
+      const friendlyError = getUserFriendlyResendOTPError(error);
+      
+      // Show error in modal for critical errors
+      setErrorModal({
+        visible: true,
+        title: friendlyError.title,
+        message: friendlyError.message,
+      });
+      
+      // Set inline error (simplified message)
+      setOtpError(friendlyError.message.split('\n\n')[0]);
     } finally {
       setSendingOTP(false);
     }
