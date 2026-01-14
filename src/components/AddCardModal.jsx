@@ -12,7 +12,7 @@ import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
 import { generateBusinessCard, generateBusinessCardFile } from '../utils/businessCardGenerator';
 import ErrorModal from './ErrorModal';
 
-const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null }) => {
+const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null, initialTab = null }) => {
   const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', or 'manual'
   const [cardImage, setCardImage] = useState(null);
   const [cardPreview, setCardPreview] = useState(null);
@@ -126,20 +126,43 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
     } else if (visible && initialData) {
       // Pre-populate form with existing data when opening for edit
       console.log('📝 Loading existing card data for editing:', initialData);
+      console.log('📝 InitialData (full object):', JSON.stringify(initialData, null, 2));
+      console.log('📝 InitialData keys:', Object.keys(initialData));
+      console.log('📝 InitialData entries:', Object.entries(initialData));
       
+      // Log each field individually to see what's actually there
+      console.log('📝 Field check:', {
+        cardOwnerName: initialData.cardOwnerName,
+        companyName: initialData.companyName,
+        department: initialData.department,
+        position: initialData.position,
+        phone: initialData.phone,
+        mobile: initialData.mobile,
+        email: initialData.email,
+        companyAddress: initialData.companyAddress,
+        linkedIn: initialData.linkedIn,
+        cardImageUrl: initialData.cardImageUrl
+      });
+      
+      // Populate form with all available data from initialData
+      // Use actual values from initialData, preserving empty strings vs undefined
       const existingFormData = {
-        cardOwnerName: initialData.cardOwnerName || '',
-        companyName: initialData.companyName || '',
-        department: initialData.department || '',
-        position: initialData.position || '',
-        phone: initialData.phone || '',
-        mobile: initialData.mobile || '',
-        email: initialData.email || '',
-        companyAddress: initialData.companyAddress || '',
-        linkedIn: initialData.linkedIn || '',
-        cardImageUrl: initialData.cardImageUrl || ''
+        cardOwnerName: initialData.cardOwnerName ?? '',
+        companyName: initialData.companyName ?? '',
+        department: initialData.department ?? '',
+        position: initialData.position ?? '',
+        phone: initialData.phone ?? '',
+        mobile: initialData.mobile ?? '',
+        email: initialData.email ?? '',
+        companyAddress: initialData.companyAddress ?? '',
+        linkedIn: initialData.linkedIn ?? '',
+        cardImageUrl: initialData.cardImageUrl ?? ''
       };
       
+      console.log('📝 Populating form with:', existingFormData);
+      console.log('📝 FormData (stringified):', JSON.stringify(existingFormData, null, 2));
+      
+      // Set form data - this will populate the form fields
       setFormData(existingFormData);
       
       // Clear generated preview since we have existing data
@@ -156,16 +179,24 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
         setCardImage(null);
       }
       
-      // Set showForm to true so the form is displayed immediately
-      setShowForm(true);
-      // If there's an existing image, default to upload tab; otherwise manual
-      if (initialData.cardImageUrl) {
-        setActiveTab('upload');
+      // Use initialTab prop if provided, otherwise default based on context
+      if (initialTab) {
+        // If initialTab is provided (e.g., 'upload' for changing card image)
+        setActiveTab(initialTab);
+        // If changing card image, show form immediately so user can see/edit existing data
+        // User can upload new image and form will update
+        setShowForm(true);
       } else {
+        // Default to 'manual' tab when editing form data
         setActiveTab('manual');
+        setShowForm(true);
       }
+      
+      // Clear any previous errors
+      setFieldErrors({});
+      setTouchedFields({});
     }
-  }, [visible, initialData]);
+  }, [visible, initialData, initialTab]);
 
   // Process OCR when image is uploaded
   const handleProcessOCR = useCallback(async () => {
@@ -295,12 +326,16 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
       // If we have a preview from initialData but no uploaded file, allow upload
       // If we have a new uploaded file, keep showing the form
       if (cardPreview && !cardImage && initialData) {
-        // Editing mode: existing image shown, allow new upload
-        setShowForm(false); // Hide form until new image is uploaded
-      } else if (!cardPreview) {
+        // Editing mode: existing image shown, but keep form visible so user can edit
+        // Don't hide form - user should be able to see and edit existing data
+        setShowForm(true);
+      } else if (!cardPreview && !cardImage) {
+        // No image at all - hide form until image is uploaded
         setShowForm(false);
+      } else {
+        // Has image (new upload) - show form
+        setShowForm(true);
       }
-      // If cardImage exists (new upload), keep form shown
     }
   };
 
@@ -1132,6 +1167,11 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
               ? 'border-orange-300 focus:ring-orange-500'
               : 'border-brand-brown/20 focus:ring-brand-orange/50'
           } focus:outline-none focus:ring-2 bg-white text-brand-brown placeholder:text-brand-textSecondary/60 placeholder:italic`}
+          // Ensure placeholder only shows when field is empty
+          style={{ 
+            fontStyle: formData[name] ? 'normal' : 'italic',
+            color: formData[name] ? '#55231E' : 'inherit'
+          }}
         />
         {hasError && (
           <p className="text-xs text-red-500 flex items-center gap-1">
@@ -1374,13 +1414,37 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                    <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center group">
                       <img
                         src={cardPreview}
                         alt="Card preview"
                         className="max-w-full max-h-64 object-contain"
                         style={{ mixBlendMode: 'multiply' }}
                       />
+                      {/* Change Card Button - Camera Icon */}
+                      <button
+                        onClick={() => {
+                          // Reset card preview and show upload interface
+                          setCardPreview(null);
+                          setCardImage(null);
+                          setOriginalImage(null);
+                          setCrop(null);
+                          setCompletedCrop(null);
+                          setShowCropAdjustment(false);
+                          setShowForm(false);
+                          setGeneratedCardPreview(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                          // Keep form data intact so user doesn't lose their information
+                        }}
+                        disabled={processingCrop || processingOCR || uploading}
+                        className="absolute top-2 right-2 p-2 bg-brand-orange hover:bg-brand-orangeLight text-white rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                        title="Change business card image - Upload, take picture, or drag & drop"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                      {/* Remove Card Button - X Icon */}
                       <button
                         onClick={() => {
                           setCardPreview(null);
@@ -1392,7 +1456,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                           }
                         }}
                         disabled={processingCrop || processingOCR || uploading}
-                        className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+                        className="absolute top-2 left-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+                        title="Remove card"
                       >
                         <X className="w-4 h-4 text-brand-brown" />
                       </button>
@@ -1418,13 +1483,36 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
             ) : (
               <div className="space-y-4">
                 {cardPreview && (
-                  <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                  <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center group">
                     <img
                       src={cardPreview}
                       alt="Card preview"
                       className="max-w-full max-h-48 object-contain"
                       style={{ mixBlendMode: 'multiply' }}
                     />
+                    {/* Change Card Button - Camera Icon */}
+                    <button
+                      onClick={() => {
+                        // Reset card preview and show upload interface
+                        setCardPreview(null);
+                        setCardImage(null);
+                        setOriginalImage(null);
+                        setCrop(null);
+                        setCompletedCrop(null);
+                        setShowCropAdjustment(false);
+                        setShowForm(false);
+                        setGeneratedCardPreview(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                        // Keep form data intact so user doesn't lose their information
+                      }}
+                      disabled={processingCrop || processingOCR || uploading}
+                      className="absolute top-2 right-2 p-2 bg-brand-orange hover:bg-brand-orangeLight text-white rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                      title="Change business card image - Upload, take picture, or drag & drop"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
@@ -1602,13 +1690,37 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                        <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center group">
                           <img
                             src={cardPreview}
                             alt="Card preview"
                             className="max-w-full max-h-64 object-contain"
                             style={{ mixBlendMode: 'multiply' }}
                           />
+                          {/* Change Card Button - Camera Icon */}
+                          <button
+                            onClick={() => {
+                              // Reset card preview and show upload interface
+                              setCardPreview(null);
+                              setCardImage(null);
+                              setOriginalImage(null);
+                              setCrop(null);
+                              setCompletedCrop(null);
+                              setShowCropAdjustment(false);
+                              setShowForm(false);
+                              setGeneratedCardPreview(null);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                              }
+                              // Keep form data intact so user doesn't lose their information
+                            }}
+                            disabled={processingCrop || processingOCR || uploading}
+                            className="absolute top-2 right-2 p-2 bg-brand-orange hover:bg-brand-orangeLight text-white rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                            title="Change business card image - Upload, take picture, or drag & drop"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                          {/* Remove Card Button - X Icon */}
                           <button
                             onClick={() => {
                               setCardPreview(null);
@@ -1620,7 +1732,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                               }
                             }}
                             disabled={processingCrop || processingOCR || uploading}
-                            className="absolute top-2 right-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+                            className="absolute top-2 left-2 p-2 bg-white/90 rounded-full hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+                            title="Remove card"
                           >
                             <X className="w-4 h-4 text-brand-brown" />
                           </button>
@@ -1646,13 +1759,36 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null 
                 ) : (
                   <div className="space-y-4">
                     {cardPreview && (
-                      <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center">
+                      <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 flex items-center justify-center group">
                         <img
                           src={cardPreview}
                           alt="Card preview"
                           className="max-w-full max-h-48 object-contain"
                           style={{ mixBlendMode: 'multiply' }}
                         />
+                        {/* Change Card Button - Camera Icon */}
+                        <button
+                          onClick={() => {
+                            // Reset card preview and show upload interface
+                            setCardPreview(null);
+                            setCardImage(null);
+                            setOriginalImage(null);
+                            setCrop(null);
+                            setCompletedCrop(null);
+                            setShowCropAdjustment(false);
+                            setShowForm(false);
+                            setGeneratedCardPreview(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = '';
+                            }
+                            // Keep form data intact so user doesn't lose their information
+                          }}
+                          disabled={processingCrop || processingOCR || uploading}
+                          className="absolute top-2 right-2 p-2 bg-brand-orange hover:bg-brand-orangeLight text-white rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                          title="Change business card image - Upload, take picture, or drag & drop"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
                       </div>
                     )}
                     <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">

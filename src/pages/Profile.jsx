@@ -9,6 +9,10 @@ import { generateBusinessCard } from '../utils/businessCardGenerator';
 import ConfirmModal from '../components/ConfirmModal';
 import AddCardModal from '../components/AddCardModal';
 import { cardAPI } from '../utils/api';
+import {
+  generateFormattedText,
+  copyToClipboard
+} from '../utils/businessCardSharing';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -21,6 +25,7 @@ const Profile = () => {
   const [profilePicture, setProfilePicture] = useState(null);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [changeCardMode, setChangeCardMode] = useState(false); // Track if user wants to change card image
 
   useEffect(() => {
     if (!hasValidToken()) {
@@ -54,29 +59,50 @@ const Profile = () => {
     try {
       setLoadingCard(true);
       
-      // Fetch user's profile card using the dedicated endpoint
-      const response = await cardAPI.getMyProfile();
-      
-      console.log('📥 API Response from /api/user/my-profile:', response?.data);
-      
-      // The API returns: { code: "200", message: "Success", data: [{ cardOwnerName, companyName, department, position, phone, mobile, companyAddress, cardImageUrl }] }
-      const profileData = response?.data?.data;
-      
-      console.log('📋 Profile data structure:', Array.isArray(profileData) ? 'Array' : typeof profileData, profileData);
-      
-      // Handle response structure - API returns an array with business card data
+      // Try to get full card data from /api/card/list first (has all fields)
+      // Then fallback to /api/user/my-profile if needed
       let userCard = null;
-      if (profileData && typeof profileData === 'object') {
-        if (Array.isArray(profileData) && profileData.length > 0) {
-          // API returns array - get first card object
-          userCard = profileData[0];
-          console.log('✅ Extracted card from array:', userCard);
-        } else if (!Array.isArray(profileData)) {
-          // Fallback: if API returns object directly instead of array
+      
+      try {
+        // Fetch all cards and find the user's own card
+        const cardsResponse = await cardAPI.getCards();
+        const allCards = cardsResponse?.data?.data || [];
+        console.log('📋 All cards from /api/card/list:', allCards);
+        
+        // Find the user's card - it should match the email from my-profile
+        const profileResponse = await cardAPI.getMyProfile();
+        const profileEmail = profileResponse?.data?.data?.email;
+        
+        if (profileEmail && allCards.length > 0) {
+          // Find card that matches the user's email
+          userCard = allCards.find(card => 
+            card.email === profileEmail || 
+            card.cardOwnerEmail === profileEmail
+          );
+          
+          if (userCard) {
+            console.log('✅ Found user card in card list:', userCard);
+          } else {
+            console.log('ℹ️ User card not found in card list, using profile data');
+            // Fallback to profile data
+            const profileData = profileResponse?.data?.data;
+            userCard = profileData;
+          }
+        } else {
+          // Fallback to profile endpoint
+          const profileData = profileResponse?.data?.data;
           userCard = profileData;
-          console.log('✅ Using card object directly:', userCard);
         }
+      } catch (cardsError) {
+        console.log('ℹ️ Could not fetch from card list, using profile endpoint');
+        // Fallback to profile endpoint only
+        const profileResponse = await cardAPI.getMyProfile();
+        const profileData = profileResponse?.data?.data;
+        userCard = profileData;
       }
+      
+      console.log('📥 Final userCard data:', userCard);
+      console.log('📥 Full userCard (stringified):', JSON.stringify(userCard, null, 2));
       
       // Normalize phone numbers when setting user card (if they exist)
       if (userCard) {
@@ -86,6 +112,18 @@ const Profile = () => {
           phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
           mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
         };
+        
+        // Log all available fields for debugging
+        console.log('📋 Available card fields:', {
+          cardOwnerName: normalizedCard.cardOwnerName,
+          companyName: normalizedCard.companyName,
+          position: normalizedCard.position,
+          email: normalizedCard.email,
+          phone: normalizedCard.phone,
+          mobile: normalizedCard.mobile,
+          companyAddress: normalizedCard.companyAddress,
+          cardImageUrl: normalizedCard.cardImageUrl ? 'exists' : 'missing'
+        });
         
         // If no cardImageUrl exists but we have card data, generate a basic card
         if (!normalizedCard.cardImageUrl && normalizedCard.cardOwnerName) {
@@ -100,6 +138,7 @@ const Profile = () => {
         
         setMyCard(normalizedCard);
         console.log('✅ Loaded user profile card:', normalizedCard);
+        console.log('✅ Full myCard object (stringified):', JSON.stringify(normalizedCard, null, 2));
       } else {
         // No card registered yet
         setMyCard(null);
@@ -137,78 +176,130 @@ const Profile = () => {
 
   /* =========================
      BUSINESS CARD SHARING
+     Industry-standard sharing methods
   ========================= */
-  const formatBusinessCardText = () => {
-    if (!myCard) return '';
-    
-    let text = `📇 ${myCard.cardOwnerName || 'Business Card'}\n\n`;
-    
-    if (myCard.companyName) {
-      text += `🏢 ${myCard.companyName}\n`;
-    }
-    
-    if (myCard.position) {
-      text += `💼 ${myCard.position}\n`;
-    }
-    
-    if (myCard.mobile || myCard.phone) {
-      text += `📱 ${normalizePhoneNumber(myCard.mobile || myCard.phone)}\n`;
-    }
-    
-    if (myCard.email) {
-      text += `✉️ ${myCard.email}\n`;
-    }
-    
-    if (myCard.companyAddress) {
-      text += `📍 ${myCard.companyAddress}\n`;
-    }
-    
-    return text.trim();
-  };
 
+  // Share via WhatsApp
   const shareToWhatsApp = () => {
     if (!myCard) return;
-    const text = formatBusinessCardText();
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const text = generateFormattedText(myCard);
+    
+    // For WhatsApp, we can include the image URL in the message
+    // WhatsApp will automatically generate a preview if the URL is accessible
+    let shareText = text;
+    
+    // Add card image URL prominently if available
+    if (myCard.cardImageUrl) {
+      const cardImageUrl = myCard.cardImageUrl.startsWith('http')
+        ? myCard.cardImageUrl
+        : `${window.location.origin}${myCard.cardImageUrl}`;
+      shareText = `📷 ${cardImageUrl}\n\n${text}`;
+    }
+    
+    const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
     window.open(url, '_blank');
     setShowShareModal(false);
     toast.success('Opening WhatsApp...');
   };
 
-  const shareToWeChat = () => {
-    if (!myCard) return;
-    // WeChat sharing - WeChat doesn't support direct web sharing, so we'll copy to clipboard
-    const text = formatBusinessCardText();
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success('Business card copied! You can now paste it in WeChat.');
-      setShowShareModal(false);
-    }).catch(() => {
-      toast.error('Failed to copy. Please try again.');
-    });
-  };
-
-  const shareToKakao = () => {
-    if (!myCard) return;
-    // KakaoTalk sharing - using Kakao Link API would require SDK, for now we'll use SMS fallback
-    const text = formatBusinessCardText();
-    // Try to open KakaoTalk if available
-    const kakaoUrl = `kakaotalk://send?text=${encodeURIComponent(text)}`;
-    window.location.href = kakaoUrl;
-    
-    // Fallback: If Kakao doesn't open, show message
-    setTimeout(() => {
-      toast.info('If KakaoTalk didn\'t open, please use SMS sharing instead.');
-    }, 1000);
-    setShowShareModal(false);
-  };
-
+  // Share via SMS
   const shareViaSMS = () => {
     if (!myCard) return;
-    const text = formatBusinessCardText();
-    // SMS sharing - opens default SMS app
-    window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+    const text = generateFormattedText(myCard);
+    
+    // Include image URLs in SMS text
+    let shareText = text;
+    if (myCard.cardImageUrl) {
+      const cardImageUrl = myCard.cardImageUrl.startsWith('http')
+        ? myCard.cardImageUrl
+        : `${window.location.origin}${myCard.cardImageUrl}`;
+      shareText = `📷 Business Card: ${cardImageUrl}\n\n${text}`;
+    }
+    
+    // Use sms: protocol - works on mobile devices
+    const smsUrl = `sms:?body=${encodeURIComponent(shareText)}`;
+    
+    // Try to open SMS app
+    window.location.href = smsUrl;
+    
+    // Fallback: If on desktop or SMS doesn't open, copy to clipboard
+    setTimeout(() => {
+      copyToClipboard(shareText).then((success) => {
+        if (success) {
+          toast.info('Text with image link copied to clipboard! You can paste it in your SMS app.');
+        }
+      });
+    }, 500);
+    
     setShowShareModal(false);
     toast.success('Opening SMS...');
+  };
+
+  // Share via KakaoTalk
+  const shareToKakao = () => {
+    if (!myCard) return;
+    const text = generateFormattedText(myCard);
+    
+    // Include image URLs in KakaoTalk text
+    let shareText = text;
+    if (myCard.cardImageUrl) {
+      const cardImageUrl = myCard.cardImageUrl.startsWith('http')
+        ? myCard.cardImageUrl
+        : `${window.location.origin}${myCard.cardImageUrl}`;
+      shareText = `📷 ${cardImageUrl}\n\n${text}`;
+    }
+    
+    // Try KakaoTalk URL scheme first (mobile)
+    const kakaoUrl = `kakaotalk://send?text=${encodeURIComponent(shareText)}`;
+    
+    // Create a hidden iframe to try opening KakaoTalk
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = kakaoUrl;
+    document.body.appendChild(iframe);
+    
+    // Remove iframe after a short delay
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+    
+    // Fallback: Copy to clipboard if KakaoTalk doesn't open
+    setTimeout(() => {
+      copyToClipboard(shareText).then((success) => {
+        if (success) {
+          toast.info('Text with image link copied to clipboard! You can paste it in KakaoTalk.');
+        } else {
+          toast.info('Please copy the text manually and paste it in KakaoTalk.');
+        }
+      });
+    }, 1500);
+    
+    setShowShareModal(false);
+  };
+
+  // Share via WeChat
+  const shareToWeChat = () => {
+    if (!myCard) return;
+    const text = generateFormattedText(myCard);
+    
+    // Include image URLs in WeChat text
+    let shareText = text;
+    if (myCard.cardImageUrl) {
+      const cardImageUrl = myCard.cardImageUrl.startsWith('http')
+        ? myCard.cardImageUrl
+        : `${window.location.origin}${myCard.cardImageUrl}`;
+      shareText = `📷 Business Card Image: ${cardImageUrl}\n\n${text}`;
+    }
+    
+    // WeChat doesn't have a reliable web sharing API, so we'll copy to clipboard
+    copyToClipboard(shareText).then((success) => {
+      if (success) {
+        toast.success('Business card with image link copied to clipboard! You can now paste it in WeChat.');
+        setShowShareModal(false);
+      } else {
+        toast.error('Failed to copy. Please try again.');
+      }
+    });
   };
 
   const handleProfilePictureUpload = async (e) => {
@@ -423,9 +514,12 @@ const Profile = () => {
               </h2>
               {myCard && (
                 <button
-                  onClick={() => setShowMyCardModal(true)}
+                  onClick={() => {
+                    setChangeCardMode(false); // Update form data mode
+                    setShowMyCardModal(true);
+                  }}
                   className="px-3 py-1.5 text-xs bg-brand-orange/10 text-brand-orange rounded-lg font-medium hover:bg-brand-orange/20 transition-colors flex items-center gap-1.5"
-                  title="Update your business card"
+                  title="Update your business card information"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   Update
@@ -438,15 +532,26 @@ const Profile = () => {
             ) : myCard ? (
               // Display registered card
               <div className="bg-white rounded-lg border border-brand-brown/10 overflow-hidden">
-                {/* Card Image */}
+                {/* Card Image with Change Button */}
                 {myCard.cardImageUrl && (
-                  <div className="w-full bg-white border-b border-brand-brown/10 p-4 flex items-center justify-center">
+                  <div className="relative w-full bg-white border-b border-brand-brown/10 p-4 flex items-center justify-center group">
                     <img
                       src={myCard.cardImageUrl}
                       alt={myCard.cardOwnerName || 'My Business Card'}
                       className="max-w-full max-h-48 object-contain"
                       style={{ mixBlendMode: 'multiply' }}
                     />
+                    {/* Change Card Button - Top Right Corner */}
+                    <button
+                      onClick={() => {
+                        setChangeCardMode(true); // Change card image mode
+                        setShowMyCardModal(true);
+                      }}
+                      className="absolute top-2 right-2 p-2 bg-brand-orange/90 hover:bg-brand-orange text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      title="Change business card image"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 
@@ -670,13 +775,17 @@ const Profile = () => {
       {/* My Business Card Registration Modal */}
       <AddCardModal
         visible={showMyCardModal}
-        onClose={() => setShowMyCardModal(false)}
+        onClose={() => {
+          setShowMyCardModal(false);
+          setChangeCardMode(false); // Reset mode when closing
+        }}
         onSave={handleSaveMyCard}
         uploading={uploading}
-        initialData={myCard} // Pass existing card data for editing
+        initialData={myCard} // Pass existing card data for editing - use the same myCard that profile page displays
+        initialTab={changeCardMode ? 'upload' : 'manual'} // Open on 'upload' tab if changing card, 'manual' if updating form
       />
 
-      {/* Share Business Card Modal */}
+      {/* Share Business Card Modal - Simplified with 4 Options */}
       {showShareModal && myCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-brand-cardLight rounded-2xl w-full max-w-md p-6 relative shadow-2xl border border-brand-brown/20">
@@ -687,6 +796,7 @@ const Profile = () => {
               <X className="w-6 h-6" />
             </button>
 
+            {/* Header */}
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-16 h-16 rounded-full bg-brand-orange/20 flex items-center justify-center mb-4">
                 <Share2 className="w-8 h-8 text-brand-orange" />
@@ -699,6 +809,7 @@ const Profile = () => {
               </p>
             </div>
 
+            {/* Sharing Options - 4 Options Only */}
             <div className="space-y-3">
               {/* 1. WhatsApp */}
               <button
