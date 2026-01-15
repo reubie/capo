@@ -5,7 +5,7 @@ import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
 import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
-import { formatAsYouType, validatePhoneNumber as validatePhoneNumberLib, getCountryFromPhoneNumber } from '../utils/phoneUtils';
+import { formatAsYouType, validatePhoneNumber as validatePhoneNumberLib, getCountryFromPhoneNumber, formatPhoneForBackend } from '../utils/phoneUtils';
 import { detectUserCountrySync } from '../utils/countryDetection';
 import { compressBusinessCardImage } from '../utils/imageCompression';
 import { autoCropBusinessCard, dataURLtoFile } from '../utils/cardDetection';
@@ -30,6 +30,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
   const fileInputRef = useRef(null);
   const dragCounterRef = useRef(0);
   const processedImageRef = useRef(null);
+  const modalRef = useRef(null);
+  const dropZoneRef = useRef(null);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -58,32 +60,41 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
     setDetectedCountry(country);
   }, []);
 
-  // Prevent browser default drop behavior when modal is open
+  // Prevent browser default drop behavior when modal is open, but allow drops within modal
   useEffect(() => {
     const handleGlobalDrop = (e) => {
-      // Only prevent default if modal is visible
-      if (visible) {
-        e.preventDefault();
-        e.stopPropagation();
+      // Only prevent default if modal is visible AND drop is outside the modal
+      if (visible && modalRef.current) {
+        // Check if the drop target is within the modal
+        const isWithinModal = modalRef.current.contains(e.target);
+        if (!isWithinModal) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     };
 
     const handleGlobalDragOver = (e) => {
-      // Only prevent default if modal is visible
-      if (visible) {
-        e.preventDefault();
-        e.stopPropagation();
+      // Only prevent default if modal is visible AND drag is outside the modal
+      if (visible && modalRef.current) {
+        // Check if the drag target is within the modal
+        const isWithinModal = modalRef.current.contains(e.target);
+        if (!isWithinModal) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     };
 
     if (visible) {
-      document.addEventListener('drop', handleGlobalDrop, false);
-      document.addEventListener('dragover', handleGlobalDragOver, false);
+      // Use capture phase to handle before local handlers
+      document.addEventListener('drop', handleGlobalDrop, true);
+      document.addEventListener('dragover', handleGlobalDragOver, true);
     }
 
     return () => {
-      document.removeEventListener('drop', handleGlobalDrop, false);
-      document.removeEventListener('dragover', handleGlobalDragOver, false);
+      document.removeEventListener('drop', handleGlobalDrop, true);
+      document.removeEventListener('dragover', handleGlobalDragOver, true);
     };
   }, [visible]);
 
@@ -185,7 +196,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
         setActiveTab(initialTab);
         // If changing card image, show form immediately so user can see/edit existing data
         // User can upload new image and form will update
-        setShowForm(true);
+      setShowForm(true);
       } else {
         // Default to 'manual' tab when editing form data
         setActiveTab('manual');
@@ -804,6 +815,8 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
     setCropImageRef(null);
     setFormData(prev => ({ ...prev, cardImageUrl: '' }));
     setShowForm(false);
+    setIsDragging(false);
+    dragCounterRef.current = 0;
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -849,6 +862,11 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please drop an image file');
+        return false;
+      }
       // Process the file
       processFile(file);
       // Clear dataTransfer
@@ -1038,8 +1056,6 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
     // Note: cardImageUrl is a deleted field, do not include it
     // Note: ocrText is set to empty string as backend database has length limits
     // Format phone numbers for backend (E.164 format: +1234567890)
-    const { formatPhoneForBackend } = require('../utils/phoneUtils');
-    
     const cardJsonData = {
       cardOwnerName: formData.cardOwnerName.trim(),
       companyName: formData.companyName.trim(),
@@ -1193,7 +1209,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-brand-cardLight rounded-2xl p-6 max-w-2xl w-full relative shadow-2xl border border-brand-brown/20 max-h-[90vh] overflow-y-auto">
+      <div ref={modalRef} className="bg-brand-cardLight rounded-2xl p-6 max-w-2xl w-full relative shadow-2xl border border-brand-brown/20 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           disabled={processingOCR || uploading}
@@ -1364,6 +1380,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
               <>
                 {!cardPreview ? (
                   <div
+                    ref={dropZoneRef}
                     onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -1646,6 +1663,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
                   <div className="space-y-4">
                     {!cardPreview ? (
                       <div
+                        ref={dropZoneRef}
                         onDragEnter={handleDragEnter}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}

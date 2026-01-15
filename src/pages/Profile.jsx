@@ -231,7 +231,7 @@ const Profile = () => {
       });
     }, 500);
     
-    setShowShareModal(false);
+      setShowShareModal(false);
     toast.success('Opening SMS...');
   };
 
@@ -295,7 +295,7 @@ const Profile = () => {
     copyToClipboard(shareText).then((success) => {
       if (success) {
         toast.success('Business card with image link copied to clipboard! You can now paste it in WeChat.');
-        setShowShareModal(false);
+    setShowShareModal(false);
       } else {
         toast.error('Failed to copy. Please try again.');
       }
