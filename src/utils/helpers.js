@@ -229,6 +229,42 @@ export function validateName(name) {
   return /^[A-Za-z\s]+$/.test(name.trim());
 }
 
+/**
+ * Normalize image URL to fix Azure blob storage path resolution
+ * Decodes %2F (encoded forward slashes) back to / to ensure proper path resolution
+ * Azure blob storage requires real / separators, not encoded ones
+ * @param {string} url - Image URL (may contain %2F)
+ * @returns {string} Normalized URL with proper / separators
+ */
+export function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  
+  // Decode %2F back to / (and other common encoded path characters)
+  // This ensures Azure blob storage can resolve paths correctly
+  let normalized = decodeURIComponent(url);
+  
+  // Double-check: if the URL still contains %2F after decodeURIComponent,
+  // it might be double-encoded, so decode again
+  while (normalized.includes('%2F') || normalized.includes('%2f')) {
+    try {
+      normalized = decodeURIComponent(normalized);
+    } catch (e) {
+      // If decoding fails, break to avoid infinite loop
+      break;
+    }
+  }
+  
+  // Ensure the URL uses forward slashes (not backslashes)
+  normalized = normalized.replace(/\\/g, '/');
+  
+  // Ensure HTTPS for blob storage URLs
+  if (normalized.startsWith('http://') && normalized.includes('blob.core.windows.net')) {
+    normalized = normalized.replace('http://', 'https://');
+  }
+  
+  return normalized;
+}
+
 // ✅ Password validation (NO special characters required)
 export function validatePassword(password) {
   const rules = {

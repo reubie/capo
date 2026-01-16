@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { extractTextFromImage, extractEmail, extractPhone, extractMobile, extractName, extractCompany, extractDepartment, extractPosition, extractCompanyAddress, extractLinkedIn } from '../utils/ocr';
-import { validateEmail, normalizePhoneNumber } from '../utils/helpers';
+import { validateEmail, normalizePhoneNumber, normalizeImageUrl } from '../utils/helpers';
 import { formatAsYouType, validatePhoneNumber as validatePhoneNumberLib, getCountryFromPhoneNumber, formatPhoneForBackend } from '../utils/phoneUtils';
 import { detectUserCountrySync } from '../utils/countryDetection';
 import { compressBusinessCardImage } from '../utils/imageCompression';
@@ -157,6 +157,9 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
       
       // Populate form with all available data from initialData
       // Use actual values from initialData, preserving empty strings vs undefined
+      // Normalize image URL to fix Azure blob storage path resolution (%2F → /)
+      const normalizedImageUrl = initialData.cardImageUrl ? normalizeImageUrl(initialData.cardImageUrl) : '';
+      
       const existingFormData = {
         cardOwnerName: initialData.cardOwnerName ?? '',
         companyName: initialData.companyName ?? '',
@@ -167,7 +170,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
         email: initialData.email ?? '',
         companyAddress: initialData.companyAddress ?? '',
         linkedIn: initialData.linkedIn ?? '',
-        cardImageUrl: initialData.cardImageUrl ?? ''
+        cardImageUrl: normalizedImageUrl
       };
       
       console.log('📝 Populating form with:', existingFormData);
@@ -179,9 +182,9 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
       // Clear generated preview since we have existing data
       setGeneratedCardPreview(null);
       
-      // If there's an existing card image, show it as preview
-      if (initialData.cardImageUrl) {
-        setCardPreview(initialData.cardImageUrl);
+      // If there's an existing card image, show it as preview (using normalized URL)
+      if (normalizedImageUrl) {
+        setCardPreview(normalizedImageUrl);
         // Don't set cardImage (File object) - let user upload new one if they want
         setCardImage(null);
       } else {

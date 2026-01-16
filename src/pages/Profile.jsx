@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Share2, MessageCircle, X } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
-import { normalizePhoneNumber } from '../utils/helpers';
+import { normalizePhoneNumber, normalizeImageUrl } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompression';
 import { generateBusinessCard } from '../utils/businessCardGenerator';
 import ConfirmModal from '../components/ConfirmModal';
@@ -104,13 +104,15 @@ const Profile = () => {
       console.log('📥 Final userCard data:', userCard);
       console.log('📥 Full userCard (stringified):', JSON.stringify(userCard, null, 2));
       
-      // Normalize phone numbers when setting user card (if they exist)
+      // Normalize phone numbers and image URLs when setting user card (if they exist)
       if (userCard) {
         const normalizedCard = {
           ...userCard,
           // Normalize phone numbers if they exist (for future API updates)
           phone: userCard.phone ? normalizePhoneNumber(userCard.phone) : userCard.phone,
           mobile: userCard.mobile ? normalizePhoneNumber(userCard.mobile) : userCard.mobile,
+          // Normalize image URL to fix Azure blob storage path resolution (%2F → /)
+          cardImageUrl: userCard.cardImageUrl ? normalizeImageUrl(userCard.cardImageUrl) : userCard.cardImageUrl,
         };
         
         // Log all available fields for debugging

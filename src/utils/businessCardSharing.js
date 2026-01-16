@@ -3,6 +3,8 @@
  * Industry-standard methods for sharing business cards
  */
 
+import { normalizeImageUrl } from './helpers';
+
 /**
  * Generate vCard (VCF) format - industry standard for contact sharing
  * vCard format can be imported directly into contacts on any device
@@ -139,9 +141,11 @@ export function generateFormattedText(cardData, logoUrl = '/images/logo.png') {
 
   // Business Card Image
   if (cardData.cardImageUrl) {
-    const cardImageUrl = cardData.cardImageUrl.startsWith('http')
-      ? cardData.cardImageUrl
-      : `${window.location.origin}${cardData.cardImageUrl}`;
+    // Normalize image URL to fix Azure blob storage path resolution (%2F → /)
+    const normalizedUrl = normalizeImageUrl(cardData.cardImageUrl);
+    const cardImageUrl = normalizedUrl.startsWith('http')
+      ? normalizedUrl
+      : `${window.location.origin}${normalizedUrl}`;
     lines.push(`📷 Business Card Image:`);
     lines.push(`${cardImageUrl}`);
     lines.push('');

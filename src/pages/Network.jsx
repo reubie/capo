@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { Home, Gift, Search, Filter, Plus, X, Grid3x3, List, Building2, Mail, Phone, MapPin, Briefcase, Calendar, Linkedin, User } from 'lucide-react';
 import { networkAPI } from '../utils/api';
 import { isAuthenticated } from '../utils/auth';
-import { normalizePhoneNumber, getCountryFromPhone } from '../utils/helpers';
+import { normalizePhoneNumber, getCountryFromPhone, normalizeImageUrl } from '../utils/helpers';
 import AddCardModal from '../components/AddCardModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorModal from '../components/ErrorModal';
@@ -102,11 +102,13 @@ const Network = () => {
         console.log('📋 Sample card data:', cardsData[0]);
       }
       
-      // Normalize phone numbers when loading from backend
+      // Normalize phone numbers and image URLs when loading from backend
       const normalizedCards = cardsData.map(card => ({
         ...card,
         phone: card.phone ? normalizePhoneNumber(card.phone) : card.phone,
         mobile: card.mobile ? normalizePhoneNumber(card.mobile) : card.mobile,
+        // Normalize image URL to fix Azure blob storage path resolution (%2F → /)
+        cardImageUrl: card.cardImageUrl ? normalizeImageUrl(card.cardImageUrl) : card.cardImageUrl,
       }));
       
       // Set cards with normalized phone numbers
