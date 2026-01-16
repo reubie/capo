@@ -1056,7 +1056,7 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
     };
 
     // Prepare card JSON data (without image - image is sent as separate file)
-    // Note: cardImageUrl is a deleted field, do not include it
+    // Note: cardImageUrl is only included when editing without new image to keep existing
     // Note: ocrText is set to empty string as backend database has length limits
     // Format phone numbers for backend (E.164 format: +1234567890)
     const cardJsonData = {
@@ -1072,27 +1072,56 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
       ocrText: '' // Set to empty string - backend database has length limits
     };
 
-    // Log payload for debugging
-    console.log('🔍 Card JSON Data:', cardJsonData);
-    console.log('🔍 Card Image File:', cardImage);
-    console.log('🔍 Card Preview (existing image URL):', cardPreview);
-    console.log('🔍 Initial Data (editing mode):', !!initialData);
-    console.log('🔍 Active Tab:', activeTab);
-    console.log('🔍 LinkedIn value type:', typeof cardJsonData.linkedIn, 'value:', cardJsonData.linkedIn);
-    console.log('🔍 Department value type:', typeof cardJsonData.department, 'value:', cardJsonData.department);
-    console.log('🔍 OCR Text: (empty string - backend database has length limits)');
-
     // Handle file/image logic:
-    // 1. If we have a new cardImage (uploaded file), use it
-    // 2. If manual entry, always generate a card from form data
-    // 3. If updating without new image (initialData exists but no cardImage), generate a card from form data
-    // 4. If camera/upload tab but no file and no initialData (new card), show error
+    // Priority order:
+    // 1. Uploaded file (cardImage instanceof File) - highest priority
+    // 2. Generated preview (generatedCardPreview) - convert to File for manual entry
+    // 3. Existing image URL when editing - keep it in cardData (no file sent)
     
-    let fileToSave = cardImage; // Start with uploaded file if any
+    let fileToSave = null;
     
-    if (!fileToSave) {
-      if (activeTab === 'manual') {
-        // Manual entry: always generate a card from form data
+    // Step 1: Check for uploaded file (camera/upload tabs)
+    if (cardImage instanceof File) {
+      fileToSave = cardImage;
+      console.log('📤 Step 1: Using new uploaded file:', fileToSave.name, fileToSave.size, 'bytes');
+    }
+    // Step 2: Check for generated preview (manual entry tab) - ALWAYS check this if it exists
+    // This takes priority over existing image URLs when user is on manual tab
+    else if (activeTab === 'manual') {
+      // On manual tab, we should always have a generated preview or generate one
+      if (generatedCardPreview && typeof generatedCardPreview === 'string' && generatedCardPreview.startsWith('data:')) {
+        // Convert generated preview data URL to File
+        try {
+          fileToSave = dataURLtoFile(generatedCardPreview, 'generated-card.png');
+          console.log('✅ Step 2: Using generated card preview (converted to File):', fileToSave.size, 'bytes');
+        } catch (error) {
+          console.error('Error converting generated preview to File:', error);
+          // Fallback: try generating the file again
+          try {
+            fileToSave = await generateBusinessCardFile({
+              cardOwnerName: cardJsonData.cardOwnerName,
+              position: cardJsonData.position,
+              companyName: cardJsonData.companyName,
+              email: cardJsonData.email,
+              mobile: cardJsonData.mobile,
+              phone: cardJsonData.phone,
+              companyAddress: cardJsonData.companyAddress,
+            }, 'generated-card.png');
+            console.log('✅ Step 2 (fallback): Regenerated business card file:', fileToSave.size, 'bytes');
+          } catch (genError) {
+            console.error('Error generating business card file:', genError);
+            setErrorModal({
+              visible: true,
+              title: 'Card Generation Error',
+              message: 'Failed to generate business card image. Please try again.',
+            });
+            return;
+          }
+        }
+      } else {
+        // Manual tab but no preview ready yet (timing issue) or preview is invalid
+        // Generate the file synchronously to ensure we have it
+        console.log('⚠️ Manual tab: No preview ready, generating file now...');
         try {
           fileToSave = await generateBusinessCardFile({
             cardOwnerName: cardJsonData.cardOwnerName,
@@ -1103,7 +1132,34 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
             phone: cardJsonData.phone,
             companyAddress: cardJsonData.companyAddress,
           }, 'generated-card.png');
-          console.log('✅ Generated business card file for manual entry');
+          console.log('✅ Step 2 (generated on save): Generated business card file:', fileToSave.size, 'bytes');
+        } catch (genError) {
+          console.error('Error generating business card file:', genError);
+          setErrorModal({
+            visible: true,
+            title: 'Card Generation Error',
+            message: 'Failed to generate business card image. Please try again.',
+          });
+          return;
+        }
+      }
+    }
+    // Step 3: Check if we need to generate a file for new card
+    else if (!initialData) {
+      // Creating NEW card (no initialData)
+      if (activeTab === 'manual') {
+        // Manual entry: generate a card from form data
+        try {
+          fileToSave = await generateBusinessCardFile({
+            cardOwnerName: cardJsonData.cardOwnerName,
+            position: cardJsonData.position,
+            companyName: cardJsonData.companyName,
+            email: cardJsonData.email,
+            mobile: cardJsonData.mobile,
+            phone: cardJsonData.phone,
+            companyAddress: cardJsonData.companyAddress,
+          }, 'generated-card.png');
+          console.log('✅ Generated business card file for new manual entry:', fileToSave.size, 'bytes');
         } catch (error) {
           console.error('Error generating business card file:', error);
           setErrorModal({
@@ -1113,9 +1169,29 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
           });
           return;
         }
-      } else if (initialData && !cardImage) {
-        // Update mode: user is updating data without changing the image
-        // Generate a new card from the updated form data (will replace existing image)
+      } else if (activeTab === 'camera' || activeTab === 'upload') {
+        // New card on camera/upload tab: requires an image
+        setErrorModal({
+          visible: true,
+          title: 'Image Required',
+          message: 'Please upload an image file for your business card.\n\nYou can:\n• Take a photo using the camera\n• Upload an image file\n• Switch to "Manual Entry" to generate a card automatically',
+        });
+        return;
+      }
+    }
+    // Step 4: Editing existing card without new file or generated preview
+    // Only reach here if no uploaded file AND no generated preview
+    else if (initialData && !fileToSave) {
+      // Editing existing card (initialData exists) and we don't have a file to save yet
+      const hasExistingImageUrl = cardPreview && typeof cardPreview === 'string' && cardPreview.startsWith('http');
+      
+      if (hasExistingImageUrl) {
+        // We have an existing image URL - include it in cardData so backend knows to keep it
+        // No file will be sent, backend will preserve the existing image
+        cardJsonData.cardImageUrl = normalizeImageUrl(cardPreview);
+        console.log('✅ Step 4: Editing without new image - keeping existing image URL:', cardJsonData.cardImageUrl);
+      } else if (activeTab === 'manual') {
+        // Editing but no existing image - generate new card
         try {
           fileToSave = await generateBusinessCardFile({
             cardOwnerName: cardJsonData.cardOwnerName,
@@ -1126,25 +1202,75 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
             phone: cardJsonData.phone,
             companyAddress: cardJsonData.companyAddress,
           }, 'updated-card.png');
-          console.log('✅ Generated business card file for update (replacing existing image)');
+          console.log('✅ Step 4: Generated business card file for edit (no existing image):', fileToSave.size, 'bytes');
         } catch (error) {
-          console.error('Error generating business card file for update:', error);
+          console.error('Error generating business card file:', error);
           setErrorModal({
             visible: true,
             title: 'Card Generation Error',
-            message: 'Failed to generate business card image for update. Please try again or upload a new image.',
+            message: 'Failed to generate business card image. Please try again or upload an image instead.',
           });
           return;
         }
-      } else if ((activeTab === 'camera' || activeTab === 'upload') && !initialData) {
-        // New card on camera/upload tab: requires an image
+      }
+    }
+
+    // Ensure cardImageUrl is NOT included when we're sending a new file
+    // (backend will create new URL from uploaded file)
+    if (fileToSave instanceof File) {
+      // We're sending a new file - don't include old cardImageUrl
+      // Backend will create new URL from the uploaded file
+      delete cardJsonData.cardImageUrl;
+      console.log('✅ Sending new file - cardImageUrl removed from cardData (backend will create new URL)');
+    }
+
+    // Log payload for debugging (after file logic is complete)
+    console.log('🔍 Card JSON Data:', cardJsonData);
+    console.log('🔍 Card Image File (new upload):', cardImage instanceof File ? `File(${cardImage.name}, ${cardImage.size} bytes)` : 'null');
+    console.log('🔍 Generated Preview:', generatedCardPreview ? `exists (type: ${typeof generatedCardPreview}, starts with 'data:': ${typeof generatedCardPreview === 'string' && generatedCardPreview.startsWith('data:')})` : 'null');
+    console.log('🔍 Generated Preview value (first 50 chars):', generatedCardPreview ? generatedCardPreview.substring(0, 50) + '...' : 'null');
+    console.log('🔍 File To Save:', fileToSave instanceof File ? `File(${fileToSave.name}, ${fileToSave.size} bytes)` : 'null');
+    console.log('🔍 File source:', fileToSave instanceof File ? 
+      (cardImage instanceof File ? 'Uploaded file' : 'Generated preview') : 
+      (cardJsonData.cardImageUrl ? 'Existing URL (no file)' : 'No file, no URL'));
+    console.log('🔍 Card Preview (existing image URL):', cardPreview);
+    console.log('🔍 Initial Data (editing mode):', !!initialData);
+    console.log('🔍 Active Tab:', activeTab);
+    console.log('🔍 cardImageUrl in cardData:', cardJsonData.cardImageUrl || 'undefined (correct when sending new file)');
+
+    // Final validation before sending
+    if (fileToSave instanceof File) {
+      // Validate file is not corrupted
+      if (fileToSave.size === 0) {
         setErrorModal({
           visible: true,
-          title: 'Image Required',
-          message: 'Please upload an image file for your business card.\n\nYou can:\n• Take a photo using the camera\n• Upload an image file\n• Switch to "Manual Entry" to generate a card automatically',
+          title: 'Invalid File',
+          message: 'The image file is empty (0 bytes). Please try uploading again.',
         });
         return;
       }
+      
+      if (fileToSave.size > 10 * 1024 * 1024) { // 10MB
+        setErrorModal({
+          visible: true,
+          title: 'File Too Large',
+          message: 'The image file is too large (max 10MB). Please compress or use a smaller image.',
+        });
+        return;
+      }
+      
+      // Verify file type
+      if (!fileToSave.type || !fileToSave.type.startsWith('image/')) {
+        console.warn('⚠️ File type might be invalid:', fileToSave.type);
+        // Don't block - let backend handle it, but log warning
+      }
+      
+      console.log('✅ File validation passed:', {
+        name: fileToSave.name,
+        size: fileToSave.size,
+        type: fileToSave.type,
+        lastModified: new Date(fileToSave.lastModified).toISOString()
+      });
     }
 
     try {

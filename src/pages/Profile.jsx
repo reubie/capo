@@ -351,19 +351,68 @@ const Profile = () => {
       // Create FormData for multipart/form-data
       const formData = new FormData();
       
-      // Add the image file
-      // For manual entry, file might be null - send empty Blob as per user request
-      if (file) {
+      // Add the image file ONLY if it's actually a File object (new image uploaded)
+      // If editing without new image, file will be null and cardData.cardImageUrl will contain existing URL
+      // Backend should check: if file exists, use it; if no file but cardImageUrl exists, keep existing image
+      if (file instanceof File) {
+        // Validate file before sending
+        if (file.size === 0) {
+          toast.error('The image file is empty. Please try uploading again.');
+          setUploading(false);
+          return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          toast.error('Image file is too large (max 10MB). Please compress or use a smaller image.');
+          setUploading(false);
+          return;
+        }
+        
+        // Verify file type
+        if (!file.type.startsWith('image/')) {
+          toast.error('Invalid file type. Please upload an image file.');
+          setUploading(false);
+          return;
+        }
+        
         formData.append('file', file);
+        console.log('📤 Sending new file to backend:', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: new Date(file.lastModified).toISOString()
+        });
+        
+        // Log FormData contents for debugging
+        console.log('📋 FormData entries:');
+        for (const [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+          } else {
+            console.log(`  ${key}:`, typeof value === 'string' && value.length > 100 ? value.substring(0, 100) + '...' : value);
+          }
+        }
       } else {
-        // Manual entry without image - send empty Blob (FormData requires File/Blob, not string)
-        const emptyBlob = new Blob([], { type: 'application/octet-stream' });
-        formData.append('file', emptyBlob, '');
+        console.log('✅ No new file - backend should keep existing image if cardImageUrl is provided');
       }
       
-      // Add card data as JSON string
+      // Add card data as JSON string (may include cardImageUrl if editing without new image)
       const cardJsonString = JSON.stringify(cardData);
       formData.append('card', cardJsonString);
+      
+      console.log('📤 Card data being sent:', {
+        hasFile: file instanceof File,
+        hasCardImageUrl: !!cardData.cardImageUrl,
+        cardImageUrl: cardData.cardImageUrl
+      });
+      
+      // Clarify expected behavior
+      if (file instanceof File) {
+        console.log('✅ Expected: Backend will upload file and create new cardImageUrl');
+        console.log('✅ Expected: cardImageUrl should NOT be in cardData when sending new file');
+      } else if (cardData.cardImageUrl) {
+        console.log('✅ Expected: Backend will keep existing cardImageUrl (no new file sent)');
+      }
       
       // Send to my-card-register endpoint
       await cardAPI.registerMyBusinessCard(formData);
