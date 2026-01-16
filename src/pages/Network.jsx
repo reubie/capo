@@ -308,8 +308,8 @@ const Network = () => {
         <div className="bg-brand-cardLight rounded-xl shadow-lg p-4 mb-6 border border-brand-brown/20">
           <div className="flex flex-col md:flex-row gap-4 md:items-center">
             <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-textSecondary w-5 h-5"/>
-              <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-3 py-2 border border-brand-brown/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-brand-brown placeholder-brand-textSecondary"/>
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-textSecondary w-5 h-5"/>
+            <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search..." className="w-full pl-10 pr-3 py-2 border border-brand-brown/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-brand-brown placeholder-brand-textSecondary"/>
             </div>
             <div className="flex items-center gap-2 flex-wrap md:flex-nowrap md:pr-0">
               <Filter className="w-5 h-5 text-brand-textSecondary hidden md:block flex-shrink-0"/>
@@ -321,8 +321,8 @@ const Network = () => {
                 <option value="name">Sort by Name</option>
               </select>
               <div className="flex items-center gap-1 border border-brand-brown/20 rounded-lg p-1 bg-white flex-shrink-0">
-                <button onClick={()=>setViewMode('grid')} className={`p-2 rounded ${viewMode==='grid'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><Grid3x3 className="w-5 h-5"/></button>
-                <button onClick={()=>setViewMode('list')} className={`p-2 rounded ${viewMode==='list'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><List className="w-5 h-5"/></button>
+              <button onClick={()=>setViewMode('grid')} className={`p-2 rounded ${viewMode==='grid'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><Grid3x3 className="w-5 h-5"/></button>
+              <button onClick={()=>setViewMode('list')} className={`p-2 rounded ${viewMode==='list'?'bg-brand-orange text-brand-textOnDark':'text-brand-textSecondary hover:text-brand-brown'}`}><List className="w-5 h-5"/></button>
               </div>
               <button onClick={()=>setShowAddCardModal(true)} className="px-3 py-1.5 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-sm"><Plus className="w-4 h-4"/>Add Card</button>
             </div>

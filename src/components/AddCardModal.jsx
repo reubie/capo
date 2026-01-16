@@ -1413,57 +1413,65 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
                   </div>
                 </div>
                 
-                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden flex items-center justify-center">
-                  <ReactCrop
-                    crop={crop}
-                    onChange={(newCrop) => {
-                      // react-image-crop: when unit is '%', onChange returns percentages
-                      // Convert to pixels based on displayed size for display
-                      if (newCrop && newCrop.unit === '%' && cropImageRef) {
-                        const img = cropImageRef;
-                        // Validate minimum size (in pixels on displayed image)
-                        const minDisplayWidth = (100 / img.width) * 100; // Minimum 100px in percentage
-                        const minDisplayHeight = (100 / img.height) * 100;
-                        if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
-                          // Crop too small, keep current crop
-                          return;
-                        }
-                      }
-                      setCrop(newCrop);
-                    }}
-                    onComplete={(completedCrop) => {
-                      // Store completed crop for final processing
-                      if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
-                        setCompletedCrop(completedCrop);
-                        // Also update the crop state with completed crop
-                        setCrop(completedCrop);
-                      }
-                    }}
-                    aspect={undefined} // Free-form crop (no aspect ratio lock)
-                    minWidth={100} // Minimum 100 pixels in percentage (0.1% if image is 100000px wide, but react-image-crop handles this)
-                    minHeight={100} // Minimum 100 pixels in percentage
-                    className="max-w-full"
-                  >
-                    <img
-                      ref={setCropImageRef}
-                      src={originalImage}
-                      alt="Original card"
-                      style={{ maxWidth: '100%', maxHeight: '400px', display: 'block', margin: '0 auto' }}
-                      onLoad={() => {
-                        // Ensure crop is set when image loads (centered)
-                        if (!crop && cropImageRef) {
-                          const defaultCrop = {
-                            unit: '%',
-                            x: 10, // 10% from left = centered for 80% width
-                            y: 10, // 10% from top = centered for 80% height
-                            width: 80,
-                            height: 80,
-                          };
-                          setCrop(defaultCrop);
-                        }
-                      }}
-                    />
-                  </ReactCrop>
+                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden min-h-[400px]">
+                  <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+                    <div className="flex items-center justify-center">
+                      <ReactCrop
+                        crop={crop}
+                        onChange={(newCrop) => {
+                          // react-image-crop: when unit is '%', onChange returns percentages
+                          // Convert to pixels based on displayed size for display
+                          if (newCrop && newCrop.unit === '%' && cropImageRef) {
+                            const img = cropImageRef;
+                            // Validate minimum size (in pixels on displayed image)
+                            const minDisplayWidth = (100 / img.width) * 100; // Minimum 100px in percentage
+                            const minDisplayHeight = (100 / img.height) * 100;
+                            if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
+                              // Crop too small, keep current crop
+                              return;
+                            }
+                          }
+                          setCrop(newCrop);
+                        }}
+                        onComplete={(completedCrop) => {
+                          // Store completed crop for final processing
+                          if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+                            setCompletedCrop(completedCrop);
+                            // Also update the crop state with completed crop
+                            setCrop(completedCrop);
+                          }
+                        }}
+                        aspect={undefined} // Free-form crop (no aspect ratio lock)
+                        minWidth={100} // Minimum 100 pixels in percentage (0.1% if image is 100000px wide, but react-image-crop handles this)
+                        minHeight={100} // Minimum 100 pixels in percentage
+                      >
+                        <img
+                          ref={setCropImageRef}
+                          src={originalImage}
+                          alt="Original card"
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '400px', 
+                            display: 'block',
+                            objectFit: 'contain'
+                          }}
+                          onLoad={() => {
+                            // Ensure crop is set when image loads (centered)
+                            if (!crop && cropImageRef) {
+                              const defaultCrop = {
+                                unit: '%',
+                                x: 10, // 10% from left = centered for 80% width
+                                y: 10, // 10% from top = centered for 80% height
+                                width: 80,
+                                height: 80,
+                              };
+                              setCrop(defaultCrop);
+                            }
+                          }}
+                        />
+                      </ReactCrop>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex gap-3 justify-between items-center">
@@ -1701,50 +1709,58 @@ const AddCardModal = ({ visible, onClose, onSave, uploading, initialData = null,
                   </div>
                 </div>
                 
-                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden flex items-center justify-center">
-                  <ReactCrop
-                    crop={crop}
-                    onChange={(newCrop) => {
-                      if (newCrop && newCrop.unit === '%' && cropImageRef) {
-                        const img = cropImageRef;
-                        const minDisplayWidth = (100 / img.width) * 100;
-                        const minDisplayHeight = (100 / img.height) * 100;
-                        if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
-                          return;
-                        }
-                      }
-                      setCrop(newCrop);
-                    }}
-                    onComplete={(completedCrop) => {
-                      if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
-                        setCompletedCrop(completedCrop);
-                        setCrop(completedCrop);
-                      }
-                    }}
-                    aspect={undefined}
-                    minWidth={100}
-                    minHeight={100}
-                    className="max-w-full"
-                  >
-                    <img
-                      ref={setCropImageRef}
-                      src={originalImage}
-                      alt="Original card"
-                      style={{ maxWidth: '100%', maxHeight: '400px', display: 'block', margin: '0 auto' }}
-                      onLoad={() => {
-                        if (!crop && cropImageRef) {
-                          const defaultCrop = {
-                            unit: '%',
-                            x: 10,
-                            y: 10,
-                            width: 80,
-                            height: 80,
-                          };
-                          setCrop(defaultCrop);
-                        }
-                      }}
-                    />
-                  </ReactCrop>
+                <div className="relative bg-white rounded-lg border border-brand-brown/20 p-4 overflow-hidden min-h-[400px]">
+                  <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+                    <div className="flex items-center justify-center">
+                      <ReactCrop
+                        crop={crop}
+                        onChange={(newCrop) => {
+                          if (newCrop && newCrop.unit === '%' && cropImageRef) {
+                            const img = cropImageRef;
+                            const minDisplayWidth = (100 / img.width) * 100;
+                            const minDisplayHeight = (100 / img.height) * 100;
+                            if (newCrop.width < minDisplayWidth || newCrop.height < minDisplayHeight) {
+                              return;
+                            }
+                          }
+                          setCrop(newCrop);
+                        }}
+                        onComplete={(completedCrop) => {
+                          if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+                            setCompletedCrop(completedCrop);
+                            setCrop(completedCrop);
+                          }
+                        }}
+                        aspect={undefined}
+                        minWidth={100}
+                        minHeight={100}
+                      >
+                        <img
+                          ref={setCropImageRef}
+                          src={originalImage}
+                          alt="Original card"
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '400px', 
+                            display: 'block',
+                            objectFit: 'contain'
+                          }}
+                          onLoad={() => {
+                            if (!crop && cropImageRef) {
+                              const defaultCrop = {
+                                unit: '%',
+                                x: 10,
+                                y: 10,
+                                width: 80,
+                                height: 80,
+                              };
+                              setCrop(defaultCrop);
+                            }
+                          }}
+                        />
+                      </ReactCrop>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex gap-3 justify-between items-center">

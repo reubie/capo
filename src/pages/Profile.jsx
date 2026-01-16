@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Share2, MessageCircle, X } from 'lucide-react';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Handshake, Share2, MessageCircle, X } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber, normalizeImageUrl } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompression';
@@ -494,7 +494,7 @@ const Profile = () => {
               className="p-2 xs:p-2.5 bg-brand-orange text-brand-textOnDark rounded-lg font-medium hover:bg-brand-orangeLight transition-colors flex items-center justify-center"
               title="Network"
             >
-              <Network className="w-4 h-4 xs:w-5 xs:h-5" />
+              <Handshake className="w-4 h-4 xs:w-5 xs:h-5" />
             </button>
           </div>
         </div>
