@@ -1,0 +1,8 @@
+# robots.txt
+# This file tells search engines which pages they can and cannot access
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://example.com/sitemap.xml

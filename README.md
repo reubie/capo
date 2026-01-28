@@ -159,6 +159,11 @@ All layouts adapt using TailwindCSS responsive utilities.
 - `npm start` or `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+- `npm run generate-sitemap` - Generate sitemap.xml (runs automatically before build)
+
+### Sitemap
+
+The project includes an automated sitemap generator. Set `VITE_SITE_URL` in your Vercel environment variables (e.g., `https://yourdomain.com`) and the sitemap will be generated automatically before each build. The sitemap will be available at `/sitemap.xml` in production.
 
 ## License
 
