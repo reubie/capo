@@ -5,4 +5,4 @@ User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://example.com/sitemap.xml
+Sitemap: https://capo-six.vercel.app/sitemap.xml

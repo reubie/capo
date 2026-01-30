@@ -109,17 +109,25 @@ function escapeXml(unsafe) {
  * Main function
  */
 function main() {
-  // Read base URL from environment variable
-  // Support both VITE_SITE_URL (Vite) and REACT_APP_SITE_URL (CRA compatibility)
-  const baseUrl = process.env.VITE_SITE_URL || process.env.REACT_APP_SITE_URL;
-  
+  // Base URL: explicit env var first, then Vercel's VERCEL_URL (set automatically on Vercel)
+  let baseUrl = process.env.VITE_SITE_URL || process.env.REACT_APP_SITE_URL;
+  if (!baseUrl && process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`;
+    console.log(`ℹ Using VERCEL_URL for sitemap: ${baseUrl} (set VITE_SITE_URL for a custom domain)`);
+  }
+
   if (!baseUrl) {
     console.error('❌ Error: VITE_SITE_URL or REACT_APP_SITE_URL environment variable is not set');
-    console.error('   Please set it in your Vercel dashboard or .env file');
+    console.error('   On Vercel, VERCEL_URL is used automatically. Locally, set VITE_SITE_URL in .env');
     console.error('   Example: VITE_SITE_URL=https://yourdomain.com');
     process.exit(1);
   }
-  
+
+  // Ensure URL has protocol for validation
+  if (!/^https?:\/\//i.test(baseUrl)) {
+    baseUrl = `https://${baseUrl}`;
+  }
+
   // Validate URL format
   try {
     new URL(baseUrl);

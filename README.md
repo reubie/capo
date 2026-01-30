@@ -163,7 +163,7 @@ All layouts adapt using TailwindCSS responsive utilities.
 
 ### Sitemap
 
-The project includes an automated sitemap generator. Set `VITE_SITE_URL` in your Vercel environment variables (e.g., `https://yourdomain.com`) and the sitemap will be generated automatically before each build. The sitemap will be available at `/sitemap.xml` in production.
+The project includes an automated sitemap generator. On Vercel, the build uses `VERCEL_URL` automatically, so no env var is required. For a custom domain, set `VITE_SITE_URL` in Vercel (e.g., `https://yourdomain.com`). The sitemap is generated before each build and available at `/sitemap.xml`.
 
 ### Google Search Console
 
