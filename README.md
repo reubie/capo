@@ -165,6 +165,10 @@ All layouts adapt using TailwindCSS responsive utilities.
 
 The project includes an automated sitemap generator. Set `VITE_SITE_URL` in your Vercel environment variables (e.g., `https://yourdomain.com`) and the sitemap will be generated automatically before each build. The sitemap will be available at `/sitemap.xml` in production.
 
+### Google Search Console
+
+The HTML verification file (e.g. `google3b0ba25c26182e5b.html`) lives in `public/`. Vite copies it into `dist/` on build, and Vercel serves static files before applying SPA rewrites, so the file is available at `https://your-domain.vercel.app/google3b0ba25c26182e5b.html` after deploy. Use **URL prefix** in Search Console and verify via HTML file upload.
+
 ## License
 
 MIT
