@@ -167,7 +167,7 @@ The project includes an automated sitemap generator. On Vercel, the build uses `
 
 ### Google Search Console
 
-The HTML verification file (e.g. `google3b0ba25c26182e5b.html`) lives in `public/`. Vite copies it into `dist/` on build, and Vercel serves static files before applying SPA rewrites, so the file is available at `https://your-domain.vercel.app/google3b0ba25c26182e5b.html` after deploy. Use **URL prefix** in Search Console and verify via HTML file upload.
+The HTML verification file (e.g. `googleca5b3045dfe8ae5d.html`) lives in `public/`. Vite copies it into `dist/` on build, and Vercel serves static files before applying SPA rewrites, so the file is available at `https://your-domain.vercel.app/googleca5b3045dfe8ae5d.html` after deploy. Use **URL prefix** in Search Console and verify via HTML file upload.
 
 ## License
 
