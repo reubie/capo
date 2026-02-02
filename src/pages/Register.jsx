@@ -737,6 +737,11 @@ const Register = () => {
             >
               Back to Home
             </button>
+            <p className="mt-4">
+              <button onClick={() => navigate('/privacy-policy')} className="text-xs text-brand-textSecondary hover:text-brand-orange transition-colors">
+                Privacy Policy
+              </button>
+            </p>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Gifticon from './pages/Gifticon';
 import Network from './pages/Network';
 import Profile from './pages/Profile';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -76,6 +77,9 @@ function App() {
               </PublicRoute>
             }
           />
+
+          {/* Public – no auth required (e.g. for Google Play privacy URL) */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
           {/* Protected routes */}
           <Route
