@@ -10,6 +10,7 @@ const ConfirmModal = ({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   confirmButtonColor = 'bg-red-500 hover:bg-red-600',
+  confirmDisabled = false,
   icon: Icon = AlertTriangle,
   iconColor = 'text-red-500',
   iconBgColor = 'bg-red-500/10'
@@ -47,7 +48,8 @@ const ConfirmModal = ({
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 py-3 px-4 ${confirmButtonColor} text-white rounded-lg font-medium transition-colors`}
+            disabled={confirmDisabled}
+            className={`flex-1 py-3 px-4 ${confirmButtonColor} text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {confirmText}
           </button>

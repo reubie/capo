@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Handshake, Share2, MessageCircle, X } from 'lucide-react';
+import { Home, User, Mail, LogOut, CreditCard, Plus, Building2, Phone, Briefcase, Edit2, Camera, MapPin, Gift, Network, Handshake, Share2, MessageCircle, X, Trash2 } from 'lucide-react';
 import { hasValidToken, logout, getTokenPayload } from '../utils/auth';
 import { normalizePhoneNumber, normalizeImageUrl } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompression';
@@ -787,6 +787,14 @@ const Profile = () => {
                 Share Business Card
               </button>
               <button
+                onClick={() => navigate('/delete-account')}
+                className="w-full py-3 px-4 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                title="Delete account and data"
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete account
+              </button>
+              <button
                 onClick={handleLogout}
                 className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
               >
@@ -796,9 +804,17 @@ const Profile = () => {
             </div>
           )}
 
-          {/* Actions - No Card Yet (only show logout) */}
+          {/* Actions - No Card Yet (only show delete account + logout) */}
           {!myCard && !loadingCard && (
             <div className="space-y-3 pt-6 border-t border-brand-brown/20">
+              <button
+                onClick={() => navigate('/delete-account')}
+                className="w-full py-3 px-4 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                title="Delete account and data"
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete account
+              </button>
               <button
                 onClick={handleLogout}
                 className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"

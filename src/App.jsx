@@ -10,6 +10,7 @@ import Gifticon from './pages/Gifticon';
 import Network from './pages/Network';
 import Profile from './pages/Profile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import DeleteAccount from './pages/DeleteAccount';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -78,8 +79,9 @@ function App() {
             }
           />
 
-          {/* Public – no auth required (e.g. for Google Play privacy URL) */}
+          {/* Public – no auth required (e.g. for Google Play URLs) */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/delete-account" element={<DeleteAccount />} />
 
           {/* Protected routes */}
           <Route

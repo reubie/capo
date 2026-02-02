@@ -141,6 +141,12 @@ export const authAPI = {
     api.post('/api/user/verify-otp', data, {
       meta: { loadingText: 'Verifying OTP...' },
     }),
+
+  /** Request permanent deletion of the current user account and associated data. Requires auth. */
+  deleteAccount: () =>
+    api.delete('/api/user/account', {
+      meta: { loadingText: 'Deleting account...' },
+    }),
 };
 
 /* =========================
