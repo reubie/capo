@@ -77,6 +77,11 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
+
+# Contact form (optional – Get in touch / Contact page)
+# Uses Formspree; default form ID is set. To use a different form:
+# VITE_FORMSPREE_FORM_ID=your-form-id
+# Form fields: email, message (no name field on free tier).
 ```
 
 **Important**: The `.env` file is git-ignored and should not be committed. Never commit Firebase credentials or API keys.
