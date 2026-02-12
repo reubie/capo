@@ -11,6 +11,9 @@ import Network from './pages/Network';
 import Profile from './pages/Profile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DeleteAccount from './pages/DeleteAccount';
+import TermsOfService from './pages/TermsOfService';
+import Contact from './pages/Contact';
+import About from './pages/About';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -81,6 +84,9 @@ function App() {
 
           {/* Public – no auth required (e.g. for Google Play URLs) */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
           <Route path="/delete-account" element={<DeleteAccount />} />
 
           {/* Protected routes */}

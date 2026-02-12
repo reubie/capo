@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import ContactModal from '../components/ContactModal';
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
+  const [showContactModal, setShowContactModal] = useState(false);
 
   useEffect(() => {
     document.title = 'Privacy Policy – Jiome';
@@ -158,15 +160,20 @@ const PrivacyPolicy = () => {
           </section>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-brand-brown/10">
-          <button
-            onClick={() => navigate('/')}
-            className="text-brand-orange font-medium hover:text-brand-orangeDark transition-colors"
-          >
+        <div className="mt-10 pt-6 border-t border-brand-brown/10 flex flex-wrap gap-4">
+          <button onClick={() => navigate('/')} className="text-brand-orange font-medium hover:text-brand-orangeDark transition-colors">
             ← Back to Home
+          </button>
+          <button onClick={() => navigate('/terms-of-service')} className="text-brand-textSecondary text-sm hover:text-brand-brown transition-colors">
+            Terms of Service
+          </button>
+          <button onClick={() => setShowContactModal(true)} className="text-brand-textSecondary text-sm hover:text-brand-brown transition-colors">
+            Contact
           </button>
         </div>
       </main>
+
+      <ContactModal visible={showContactModal} onClose={() => setShowContactModal(false)} />
     </div>
   );
 };

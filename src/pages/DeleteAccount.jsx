@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ChevronLeft, Trash2, Mail, AlertTriangle } from 'lucide-react';
+import ContactModal from '../components/ContactModal';
 import { hasValidToken } from '../utils/auth';
 import { authAPI } from '../utils/api';
 import { logout } from '../utils/auth';
@@ -13,6 +14,7 @@ const DeleteAccount = () => {
   const navigate = useNavigate();
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const isLoggedIn = hasValidToken();
 
   useEffect(() => {
@@ -185,14 +187,17 @@ const DeleteAccount = () => {
           <p className="text-brand-textSecondary text-sm mb-2">
             If you cannot delete your account from the app or have questions, contact us:
           </p>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+          <button
+            type="button"
+            onClick={() => setShowContactModal(true)}
             className="inline-flex items-center gap-2 text-brand-orange font-medium hover:underline"
           >
             <Mail className="w-4 h-4" />
             {SUPPORT_EMAIL}
-          </a>
+          </button>
         </section>
+
+        <ContactModal visible={showContactModal} onClose={() => setShowContactModal(false)} />
 
         <div className="mt-10 pt-6 border-t border-brand-brown/10">
           <button

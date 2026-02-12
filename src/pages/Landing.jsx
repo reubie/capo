@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getToken, isTokenExpired, hasValidToken, hasJustLoggedOut, clearJustLoggedOutFlag } from '../utils/auth';
+import ContactModal from '../components/ContactModal';
 
 const Landing = () => {
   const navigate = useNavigate();
   const [hoveredSide, setHoveredSide] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
   // Check authentication state on mount and when it changes
   useEffect(() => {
@@ -225,6 +227,34 @@ const Landing = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer – Apple/Store compliance: company, About, Privacy, Terms, Contact */}
+      <footer className="absolute bottom-0 left-0 right-0 z-40 py-3 px-4 bg-brand-brown/85 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto flex flex-col items-center gap-2 text-center">
+          <p className="text-brand-textOnDark/95 text-xs">
+            Jiome by Jiome Group — Gifticon &amp; Network. Show you care.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-brand-textOnDark/95 text-xs">
+            <button onClick={() => navigate('/about')} className="hover:text-white underline underline-offset-2 transition-colors">
+              About
+            </button>
+            <span className="text-brand-textOnDark/60">·</span>
+            <button onClick={() => navigate('/privacy-policy')} className="hover:text-white underline underline-offset-2 transition-colors">
+              Privacy Policy
+            </button>
+            <span className="text-brand-textOnDark/60">·</span>
+            <button onClick={() => navigate('/terms-of-service')} className="hover:text-white underline underline-offset-2 transition-colors">
+              Terms of Service
+            </button>
+            <span className="text-brand-textOnDark/60">·</span>
+            <button onClick={() => setShowContactModal(true)} className="hover:text-white underline underline-offset-2 transition-colors">
+              Contact
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      <ContactModal visible={showContactModal} onClose={() => setShowContactModal(false)} />
     </div>
   );
 };
